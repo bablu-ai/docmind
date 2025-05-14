@@ -1,0 +1,86 @@
+---
+config:
+  flowchart:
+    curve: basis
+---
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#FDFD96',        # Light Yellow Backend
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#ADD8E6',      # Light Blue Frontend
+      'tertiaryColor': '#FFC0CB',       # Pink Agent Logic
+      'quadraryColor': '#90EE90',       # Light Green External/DB
+      'quinaryColor': '#FFB347',        # Light Orange Otel Components
+      'senaryColor': '#B0E0E6'         # Powder Blue Tracing Backend
+    }
+  }
+}%%
+
+graph TD;
+
+    %% Define Styles
+    classDef appComponentStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;
+    classDef frontendStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef agentStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;
+    classDef externalDbStyle fill:#90EE90,stroke:#4CAF50,stroke-width:2px;
+    classDef otelSdkStyle fill:#FFB347,stroke:#B87A30,stroke-width:1px,stroke-dasharray: 2 2; 
+    classDef otelCollectorStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;
+    classDef tracingBackendStyle fill:#B0E0E6,stroke:#6495ED,stroke-width:2px;
+
+    %% Define Application Components (Simplified High Level)
+    User[User];
+    ReactFrontend[React Frontend App]:::frontendStyle;
+    BackendAPI[Backend API Service]:::appComponentStyle;
+    AgentLLMLogic[Agent / LLM Logic]:::agentStyle;
+    ExternalServices[External Services Grouped]:::externalDbStyle;
+    Database[Database MongoDB]:::externalDbStyle;
+
+    %% Define Observability Components
+    subgraph OpenTelemetry Integration
+        direction TB
+        %% SDKs are conceptually embedded
+        OtelSDKFrontend[Otel SDK - Frontend]:::otelSdkStyle;
+        OtelSDKBackend[Otel SDK - Backend]:::otelSdkStyle;
+        %% Annotation concept note
+        AnnotationNote("Instrumentation via<br/>Otel SDK & Annotations<br/>e.g., @Trace");
+        style AnnotationNote fill:#fff,stroke:#ccc,stroke-width:1px,color:#666;
+
+
+        %% Optional Collector Pattern
+        OtelCollector[OpenTelemetry Collector]:::otelCollectorStyle;
+
+        %% Tracing Backend
+        TracingBackend["Phoenix / Otel Server<br/>Trace Storage & Visualization JSON"]:::tracingBackendStyle;
+
+        %% Link annotation note conceptually to SDK
+        OtelSDKBackend --- AnnotationNote;
+    end
+
+
+    %% Show Request Flow (Simplified)
+    User --> ReactFrontend;
+    ReactFrontend --> BackendAPI;
+    BackendAPI --> AgentLLMLogic;
+    AgentLLMLogic --> ExternalServices;
+    AgentLLMLogic --> Database;
+    AgentLLMLogic --> BackendAPI;
+    BackendAPI --> ReactFrontend;
+
+
+    %% Show Telemetry Flow (Traces/Spans)
+    ReactFrontend -- Contains --> OtelSDKFrontend;
+    BackendAPI -- Contains --> OtelSDKBackend;
+    AgentLLMLogic -- Instrumented by --> OtelSDKBackend;
+
+    %% SDKs send data to Collector
+    OtelSDKFrontend -- Traces / Spans --> OtelCollector;
+    OtelSDKBackend -- Traces / Spans --> OtelCollector;
+
+    %% Collector sends data to Tracing Backend
+    OtelCollector -- Exports Traces --> TracingBackend;

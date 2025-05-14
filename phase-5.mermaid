@@ -1,0 +1,138 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#FDFD96',        # Light Yellow (Backend Core)
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#ADD8E6',      # Light Blue (UI)
+      'tertiaryColor': '#FFB347',       # Light Orange (LLM)
+      'quadraryColor': '#FFC0CB',       # Pink (Agent/Tools/Router)
+      'quinaryColor': '#90EE90',        # Light Green (External APIs)
+      'senaryColor': '#F5DEB3',         # Wheat (Analyzer)
+      'septenaryColor': '#D8BFD8',       # Thistle (Internal Services/APIs)
+      'octonaryColor': '#E0FFFF'         # Light Cyan (Refiner)
+    }
+  }
+}%%
+graph LR;
+
+    %% Define Styles
+    classDef userStyle fill:#C1E1C1,stroke:#508050,stroke-width:2px;
+    classDef uiStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef backendStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;
+    classDef agentStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;
+    classDef routerStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;
+    classDef toolStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef analyzerStyle fill:#F5DEB3,stroke:#A08A65,stroke-width:2px;
+    classDef llmStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;
+    classDef externalApiStyle fill:#90EE90,stroke:#4CAF50,stroke-width:2px;
+    classDef internalApiStyle fill:#D8BFD8,stroke:#8A7A8A,stroke-width:2px;
+    classDef refinerStyle fill:#E0FFFF,stroke:#708080,stroke-width:2px;
+
+    %% Define Top-Level Nodes and Core Subgraphs
+    User([User]):::userStyle;
+
+    subgraph Frontend
+        %% Direction Top-to-Bottom
+        direction TB
+        UI[Chat Interface]:::uiStyle;
+    end
+
+    subgraph Backend
+        %% Direction Top-to-Bottom
+        direction TB
+        BackendService[Backend API Service]:::backendStyle;
+        Agent[LangChain Agent]:::agentStyle;
+        %% Hexagon shape for Analyzer
+        QueryAnalyzer{{Query Analyzer}}:::analyzerStyle;
+        %% Rhombus shape for Router
+        ToolRouter{Tool Router}:::routerStyle;
+        StockTool[Stock Info Tool]:::toolStyle;
+        WeatherTool[Weather Info Tool]:::toolStyle;
+        VectorDBSearchTool[Vector DB Search Tool]:::toolStyle;
+        %% Node for RAG Context Refinement
+        RAGContextRefiner[RAG Context Refiner]:::refinerStyle;
+    end
+
+    %% Define Internal Services Subgraph
+    subgraph Internal Services
+        %% Direction Top-to-Bottom
+        direction TB
+        VectorDBAPI[Vector DB API Endpoint]:::internalApiStyle;
+    end
+
+    %% Define External Services Subgraph
+    subgraph External Services
+        %% Direction Top-to-Bottom
+        direction TB
+        YahooAPI[Yahoo Finance API]:::externalApiStyle;
+        WeatherAPI[Weather Service API]:::externalApiStyle;
+    end
+
+    %% Define Single LLM Node (Intended Lower Placement)
+    %% Renamed to reflect multiple potential providers
+    LLM["LLM (OpenAI, Gemini, Anthropic...)"]:::llmStyle;
+
+
+    %% --- Define Flows ---
+
+    %% Attempt to force Service Subgraphs and LLM lower using invisible links from Agent
+    Agent ~~~ VectorDBAPI;
+    Agent ~~~ YahooAPI;
+    Agent ~~~ WeatherAPI;
+    Agent ~~~ LLM;
+
+    %% Core Flow (User -> UI -> Backend)
+    User -- Query --> UI;
+    UI -- Sends Query --> BackendService;
+    BackendService -- Query --> Agent;
+
+    %% Agent Interaction with Analyzer and Router
+    Agent <-- Query & get <BR>Analysis Result --> QueryAnalyzer;
+    
+    Agent --Request Route Choice---> ToolRouter;
+
+    %% Tool Router Directs Traffic to Tools or the single LLM
+    ToolRouter -- Route: Use Stock Tool --> StockTool;
+    ToolRouter -- Route: Use Weather Tool --> WeatherTool;
+    ToolRouter -- Route: Use Vector Search --> VectorDBSearchTool;
+    %% Route points to the single LLM node
+    ToolRouter <-- Route: Direct LLM Call --> LLM;
+
+    %% Tool Interactions with External/Internal Services
+    StockTool <-- Fetches Data --> YahooAPI;
+    
+    WeatherTool <-- Fetches Weather Data --> WeatherAPI;
+
+    VectorDBSearchTool <-- Search Query --> VectorDBAPI;
+    
+
+    %% Responses back to Agent (Direct paths)
+    StockTool <-- Formatted Stock Data --> Agent;
+    WeatherTool <-- Formatted Weather Data --> Agent;
+    %% LLM response for the direct call path
+    LLM <-- Send final context<br> get LLM Response --> Agent;
+
+    %% >> RAG Refinement Path << (Only when Vector DB Search Tool is used)
+    %% 1. Vector DB Tool sends results back to Agent
+    VectorDBSearchTool <-- Raw Search Results --> Agent;
+    %% 2. Agent triggers Refinement Step
+    Agent -- Request Refinement (Results + Query) --> RAGContextRefiner;
+    %% 3. Refiner uses the LLM
+    RAGContextRefiner <-- Refine My Context --> LLM;
+    
+    
+    %% >> End RAG Refinement Path <<
+
+    %% Final Response Flow (Agent -> Backend -> UI -> User)
+    %% Agent uses results (potentially refined)
+    Agent -- Aggregated/Formatted Response --> BackendService;
+    BackendService -- Sends Final Response --> UI;
+    UI -- Displays Response --> User;
+
+    %% Apply curved lines
+    linkStyle default interpolate basis

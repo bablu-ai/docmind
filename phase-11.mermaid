@@ -1,0 +1,104 @@
+---
+config:
+  flowchart:
+    curve: basis
+---
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#ADD8E6',        
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#FDFD96',      # Light Yellow Backend API Layer
+      'tertiaryColor': '#E6E6FA',       # Lavender Backend Service Layer
+      'quadraryColor': '#CBC3E3',       # Light Purple LightRAG/Processing
+      'quinaryColor': '#D8BFD8',        # Thistle Internal Services APIs (VectorDB)
+      'senaryColor': '#FFB347',         # Light Orange Databases (Mongo) / External Website
+      'septenaryColor': '#C1E1C1'        # Light Green User (for file upload path)
+    }
+  }
+}%%
+
+graph LR; 
+
+    %% Define Styles
+    classDef userStyle fill:#C1E1C1,stroke:#508050,stroke-width:2px;
+    classDef initiatorStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px; 
+    classDef uiPanelStyle fill:#E6E6FA,stroke:#9370DB,stroke-width:2px;
+    classDef uiComponentStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef backendApiStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;
+    classDef backendServiceStyle fill:#E6E6FA,stroke:#9370DB,stroke-width:2px;
+    classDef lightragStyle fill:#CBC3E3,stroke:#7E77A1,stroke-width:2px;
+    classDef internalApiStyle fill:#D8BFD8,stroke:#8A7A8A,stroke-width:2px;
+    classDef dbStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;
+    classDef externalWebStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px,stroke-dasharray: 5 5; 
+    classDef dataAccessStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+
+
+    %% Define Initiators & External Systems
+    User[User]:::userStyle;
+    Initiator[Admin UI / Script]:::initiatorStyle;
+    VectorDBIngestAPI[Vector DB Ingest API Endpoint]:::internalApiStyle;
+    MongoDB[(MongoDB)]:::dbStyle;
+    TargetWebsite[Target Website]:::externalWebStyle;
+
+
+    %% --- Frontend (Includes File Upload Panel) ---
+    subgraph ReactApp [React Chat / Admin Application]
+        direction TB
+        OtherUIComponents:::uiPanelStyle;
+        DocUploadPanel:::uiPanelStyle
+        subgraph DocUploadPanel [Document Upload Panel]
+             direction TB
+             FileUpload[File Upload Control PDF TXT]:::uiComponentStyle;
+             MetadataInput[Metadata Input Fields]:::uiComponentStyle;
+             UploadButton[Upload Button]:::uiComponentStyle;
+        end
+        subgraph OtherUIComponents
+             direction TB
+             FileUpload[File Upload Control PDF TXT]:::uiComponentStyle; 
+        end
+        OtherUIComponents --- DocUploadPanel;
+    end
+
+    %% --- Backend ---
+    subgraph PythonBackendService [Python Backend API Service]
+        direction TB
+
+        APILayer["API Endpoints / Controllers<br/>... /documents/upload<br/>... /scrape/url ..."]:::backendApiStyle;
+        ServiceLayer[Business Logic Services<br/>Document Handling<br/>Web Scraping Service]:::backendServiceStyle;
+        %% Updated LightRAG node description
+        LightRAGDocProcessor["LightRAG Document Processor<br/>Handles Files & Web Scraping"]:::lightragStyle;
+        DataAccessLayer[Data Access Layer MongoDB]:::dataAccessStyle;
+
+        %% Flows within Backend
+        APILayer <-- Request --> ServiceLayer; 
+        ServiceLayer <-- Process Doc/URL --> LightRAGDocProcessor;
+        ServiceLayer <-- Store Results --> DataAccessLayer;
+        ServiceLayer <-- Index Vectors --> VectorDBIngestAPI;
+        DataAccessLayer <-- Store Metadata/Content --> MongoDB;
+
+    end
+
+    %% --- Define Specific Flows ---
+
+    %% == File Upload Path (Phase k) ==
+    User <-- Interacts --> DocUploadPanel;
+    UploadButton <-- Initiates Upload --> DocUploadPanel;
+    DocUploadPanel <-- POST File + Metadata --> APILayer; 
+
+    %% == Web Scraping Path (Phase l)
+    %% Triggers scrape processing
+    Initiator <-- POST URL + Params --> APILayer; 
+    LightRAGDocProcessor <-- Scrapes --> TargetWebsite;
+
+    %% == Common Processing & Storage (Called by ServiceLayer for both paths) ==
+    %% ServiceLayer --> LightRAGDocProcessor (Shown in subgraph)
+    %% LightRAGDocProcessor --> ServiceLayer (Implicitly returns processed data)
+    %% ServiceLayer --> DataAccessLayer (Shown in subgraph)
+    %% ServiceLayer --> VectorDBIngestAPI (Shown in subgraph)
+    %% DataAccessLayer --> MongoDB (Shown in subgraph)

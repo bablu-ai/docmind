@@ -1,0 +1,74 @@
+---
+config:
+  flowchart:
+    curve: basis
+---
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#FDFD96',        # Light Yellow Backend Layer
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#E6E6FA',      # Lavender Service Layer
+      'tertiaryColor': '#ADD8E6',       # Light Blue Data Access/Clients
+      'quadraryColor': '#FFB347',       # Light Orange Database
+      'quinaryColor': '#90EE90',        # Light Green External APIs
+      'senaryColor': '#FFC0CB'         # Pink Agent Logic Interface
+    }
+  }
+}%%
+
+graph TD;
+
+    %% Define Styles
+    classDef apiLayerStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;
+    classDef serviceLayerStyle fill:#E6E6FA,stroke:#9370DB,stroke-width:2px;
+    classDef dataAccessStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef extClientStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef dbStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;
+    classDef externalApiStyle fill:#90EE90,stroke:#4CAF50,stroke-width:2px;
+    classDef agentStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;
+
+    %% Define External Systems
+    %% Cylindrical shape for MongoDB, not showing collections per request
+    MongoDB[(MongoDB)]:::dbStyle;
+    YahooAPI[Yahoo Finance API]:::externalApiStyle;
+    WeatherAPI[Weather Service API]:::externalApiStyle;
+
+    %% Define Backend Service Layers (using subgraph for clarity)
+    subgraph PythonBackendService [Python Backend RESTful API Service]
+        direction TB
+
+        %% API Layer (e.g., FastAPI, Flask) - Handles HTTP Requests
+        APILayer["API Endpoints / Controllers<br/>e.g., /chat, /history, /users, /preferences"]:::apiLayerStyle;
+
+        %% Service Layer - Handles Business Logic
+        ServiceLayer[Business Logic Services<br/>User Mgmt, Chat Handling, Prefs Mgmt]:::serviceLayerStyle;
+
+        %% Data Access Layer (DAL) - Interacts with DB
+        DataAccessLayer[Data Access Layer<br/>Repositories / ODMs]:::dataAccessStyle;
+
+        %% External API Clients - Wrappers for external services
+        ExternalClients[External API Clients<br/>Stock Client, Weather Client]:::extClientStyle;
+
+        %% Placeholder representing the interface to the core Agent/LLM logic
+        AgentLogicInterface[Agent / LLM Logic Interface]:::agentStyle;
+
+        %% Define Layer Interactions
+        APILayer -- Requests --> ServiceLayer;
+        ServiceLayer -- Uses --> DataAccessLayer;
+        ServiceLayer -- Uses --> ExternalClients;
+        %% Service layer coordinates with the Agent system from previous phases
+        ServiceLayer -- Interacts with --> AgentLogicInterface;
+        ServiceLayer -- Responses --> APILayer;
+
+    end
+
+    %% Define Interactions with External Systems (Bidirectional suggested)
+    DataAccessLayer <-- CRUD Operations --> MongoDB;
+    ExternalClients <-- Fetch Stock Data --> YahooAPI;
+    ExternalClients <-- Fetch Weather Data --> WeatherAPI;

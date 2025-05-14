@@ -1,0 +1,107 @@
+---
+config:
+  flowchart:
+    curve: basis
+---
+
+
+graph TD; 
+    %% Define Styles
+    classDef userStyle fill:#C1E1C1,stroke:#508050,stroke-width:2px;
+    classDef frontendStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef backendSystemStyle fill:lightYellow,stroke:#B8B84E,stroke-width:2px;
+    classDef backendComponentStyle fill:#FFFACD,stroke:#B8B84E,stroke-width:1px; %% Lighter yellow for internal backend parts
+    classDef externalServiceStyle fill:#9986, stroke:#B8B84E,stroke-width:1px; %% Lighter yellow for internal backend parts
+    classDef agentCoreStyle fill:#FFC0CB,stroke:#B88088,stroke-width:1px;
+    classDef ingestionStyle fill:#CBC3E3,stroke:#7E77A1,stroke-width:1px; %% Reuse purple from LightRAG phase
+    classDef dataStoreStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;
+    classDef dataStoreStyle1 fill:#00019,stroke:#B87A30,stroke-width:2px;
+    classDef externalSvcStyle fill:#90EE90,stroke:#4CAF50,stroke-width:2px;
+    classDef externalLlmStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px; %% Same as DB for LLM service
+    classDef observabilityStyle fill:#B00E6,stroke:#6495ED,stroke-width:2px;
+    classDef observabilityStyle1 fill:#6346,stroke:#6495ED,stroke-width:2px;
+  
+
+
+    %% Make node  and links invisible
+    
+    %% Define Nodes
+    User[User]:::userStyle;
+    Frontend:::frontendStyle
+    BackendSystem:::backendSystemStyle
+    DataStores:::dataStoreStyle1
+    Observability:::observabilityStyle1
+    ExternalServices:::externalServiceStyle
+
+    subgraph Frontend[Frontend React App]
+        direction TB
+        WebAppUI[Chat UI & Ingestion UI]
+    end
+
+    subgraph BackendSystem [Backend System Python]
+        direction TB
+        APIService[API Service FastAPI/Flask]:::backendComponentStyle;
+        AgentCore["Agent & LLM Core<br/>LangChain / LightRAG<br/>Planning, Tools, RAG"]:::agentCoreStyle;
+        DataIngestion[Data Ingestion Service<br/>LightRAG File/Web Processors]:::ingestionStyle;
+    end
+
+    subgraph DataStores [Data Stores]
+        direction LR
+        VectorDB[(Vector Database<br/>Embeddings)]:::dataStoreStyle;
+        MongoDB[(MongoDB<br/>Metadata History Users Prefs)]:::dataStoreStyle;
+        New4j[(Neo4j/Json)]:::dataStoreStyle;
+    end
+
+    subgraph ExternalServices [External Services]
+        direction TB
+        LLMServices["LLM Services<br/>OpenAI Gemini Anthropic..."]:::externalLlmStyle;
+        FactSet[Stock API FactSet]:::externalSvcStyle;
+        Account360[Account360]:::externalSvcStyle;
+        OneCOP[Enterprise Search<br>1COP]:::externalSvcStyle;
+        InfoMax[Infomax Websites Scraped]:::externalSvcStyle;
+        RagSearch[RagSearch VectorDb]:::externalSvcStyle;
+    end
+
+    subgraph Observability [Observability Platform]
+        direction TB
+        OtelCollector[OpenTelemetry Collector]:::observabilityStyle;
+        TracingBackend["Tracing Backend<br/>Phoenix Jaeger etc"]:::observabilityStyle;
+    end
+
+    %% Define Primary Interactions
+    User <--> WebAppUI;
+    WebAppUI <-- HTTP API --> APIService;
+
+    APIService <--> AgentCore;
+    APIService <--> DataIngestion;
+
+    RagSearch -.- DataStores;
+    AgentCore <-- Uses --> LLMServices;
+    AgentCore <-- Uses --> FactSet;
+    AgentCore <-- Uses --> Account360;
+    AgentCore <-- Uses --> OneCOP;
+    AgentCore <-- Uses --> InfoMax;
+    AgentCore <-- Uses --> RagSearch;
+    AgentCore <-- Reads/Writes --> VectorDB;
+    AgentCore <-- Reads/Writes History --> MongoDB; 
+    AgentCore <-- Reads/Writes<br>Entity Graph Model--> New4j;
+    
+    
+    
+
+DataIngestion <-- Stores Document Embeddings --> VectorDB;
+  
+    DataIngestion <-- Stores Metadata --> MongoDB;    
+    DataIngestion <-- Stores Enities<br>in Graph --> New4j;
+
+    %% Define Observability Flow
+    Frontend -.- Observability;
+    APIService -- Traces --> OtelCollector;
+    AgentCore -- Traces --> OtelCollector;
+    DataIngestion -- Traces --> OtelCollector;
+    OtelCollector -- Exports --> TracingBackend;
+
+    linkStyle 17 stroke:#FF0000, stroke-width:0px, stroke-dasharray: 5 5,stroke-opacity:0;
+    linkStyle 4 stroke:#FF0000, stroke-width:0px, stroke-dasharray: 5 5,stroke-opacity:0;
+
+    

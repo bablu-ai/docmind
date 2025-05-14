@@ -1,0 +1,117 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#FDFD96',        # Light Yellow (Backend Core)
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#ADD8E6',      # Light Blue (UI)
+      'tertiaryColor': '#FFB347',       # Light Orange (LLM)
+      'quadraryColor': '#FFC0CB',       # Pink (Agent/Tools/Router)
+      'quinaryColor': '#90EE90',        # Light Green (External APIs)
+      'senaryColor': '#F5DEB3',         # Wheat (Analyzer)
+      'septenaryColor': '#D8BFD8'       # Thistle (Internal Services/APIs)
+    }
+  }
+}%%
+graph TD;
+
+    %% Define Styles
+    classDef userStyle fill:#C1E1C1,stroke:#508050,stroke-width:2px;
+    classDef uiStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef backendStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;
+    classDef agentStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;
+    %% Router uses agent style but Rhombus shape
+    classDef routerStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;
+    classDef toolStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef analyzerStyle fill:#F5DEB3,stroke:#A08A65,stroke-width:2px;
+    classDef llmStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;
+    classDef externalApiStyle fill:#90EE90,stroke:#4CAF50,stroke-width:2px;
+    classDef internalApiStyle fill:#D8BFD8,stroke:#8A7A8A,stroke-width:2px;
+
+    %% Define Top-Level Nodes and Core Subgraphs
+    User([User]):::userStyle;
+
+    subgraph Frontend
+        %% Direction Top-to-Bottom
+        direction TB
+        UI[Chat Interface]:::uiStyle;
+    end
+
+    subgraph Backend
+        %% Direction Top-to-Bottom
+        direction TB
+        BackendService[Backend API Service]:::backendStyle;
+        Agent[LangChain Agent]:::agentStyle;
+        %% Hexagon shape for Analyzer
+        QueryAnalyzer{{Query Analyzer}}:::analyzerStyle;
+        %% Rhombus shape for Router
+        ToolRouter{Tool Router}:::routerStyle;
+        StockTool[Stock Info Tool]:::toolStyle;
+        WeatherTool[Weather Info Tool]:::toolStyle;
+        VectorDBSearchTool[Vector DB Search Tool]:::toolStyle;
+    end
+
+    %% Define LLM Node
+    LLM[Large Language Model API]:::llmStyle;
+
+    %% Define Internal Services Subgraph
+    subgraph Internal Services
+        %% Direction Top-to-Bottom
+        direction TB
+        VectorDBAPI[Vector DB API Endpoint]:::internalApiStyle;
+    end
+
+    %% Define External Services Subgraph
+    subgraph External Services
+        %% Direction Top-to-Bottom
+        direction TB
+        YahooAPI[Yahoo Finance API]:::externalApiStyle;
+        WeatherAPI[Weather Service API]:::externalApiStyle;
+    end
+
+    %% --- Define Flows ---
+
+    %% Core Flow (User -> UI -> Backend)
+    User -- Query --> UI;
+    UI -- Sends Query --> BackendService;
+    BackendService -- Query --> Agent;
+
+    %% Agent Interaction with Analyzer and Router
+    Agent -- Sends Query for Analysis --> QueryAnalyzer;
+    %% Analysis result used for routing decision by the Router
+    QueryAnalyzer -- Analysis Results (for routing) --> Agent;
+    Agent -- Request Route Choice --> ToolRouter;
+
+    %% Tool Router Directs Traffic
+    ToolRouter -- Route: Use Stock Tool --> StockTool;
+    ToolRouter -- Route: Use Weather Tool --> WeatherTool;
+    ToolRouter -- Route: Use Vector Search --> VectorDBSearchTool;
+    ToolRouter -- Route: Direct LLM Call --> LLM;
+
+    %% Tool Interactions with External/Internal Services
+    StockTool -- Fetches Data --> YahooAPI;
+    YahooAPI -- Stock Data --> StockTool;
+
+    WeatherTool -- Fetches Data --> WeatherAPI;
+    WeatherAPI -- Weather Data --> WeatherTool;
+
+    VectorDBSearchTool -- Search Query --> VectorDBAPI;
+    VectorDBAPI -- Search Results --> VectorDBSearchTool;
+
+    %% Responses back to Agent (Agent remains coordinator)
+    LLM -- LLM Response --> Agent;
+    StockTool -- Formatted Stock Data --> Agent;
+    WeatherTool -- Formatted Weather Data --> Agent;
+    VectorDBSearchTool -- Formatted Search Results --> Agent;
+
+    %% Final Response Flow (Agent -> Backend -> UI -> User)
+    Agent -- Aggregated/Formatted Response --> BackendService;
+    BackendService -- Sends Final Response --> UI;
+    UI -- Displays Response --> User;
+
+    %% Apply curved lines
+    linkStyle default interpolate basis
