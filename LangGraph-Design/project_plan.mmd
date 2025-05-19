@@ -1,0 +1,14 @@
+gantt
+    title A Gantt Diagram
+    dateFormat  YYYY-MM-DD
+    axisFormat %Y-%m-%d
+    section Foundation & Setup
+    Sprint 0: Foundation & Setup          :s0, 2025-05-13, 1w
+    
+    section Core Development
+    Phase 1: Basic Backend & UI                 :p1, after s0, 2w
+    UI( Ping,)                                  :p2, after s0, 2w
+    Backend(Database APIs)                      :p3, after p2, 1w
+    section Python-Backend
+    Python solution SPIKE w/o LLM               :p4, after p2, 1w
+    Python solution RAG embedding               :p5, after p4, 1w
