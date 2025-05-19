@@ -1,0 +1,77 @@
+%% title: Conceptual Multi-Agent Supervisor Architecture (Simplified)
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font
+      'fontSize': '16px',             %% Slightly smaller font size for simplicity
+      'primaryColor': '#90EE90',       %% Color for Supervisor Agent
+      'secondaryColor': '#A3DA8D',      %% Color for Specialized Agents
+      'tertiaryColor': '#FFB6C1',       %% Color for Tools/Resources
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333'        %% Dark text for readability
+    },
+    'flowchart': {
+      'curve': 'basis' %% Use 'basis' or 'linear' for curved lines
+    },
+    'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+flowchart TD
+
+    %% Define Node Styles
+    classDef supervisorStyle fill:#90EE90,stroke:#333,stroke-width:2px; %% Green for Supervisor
+    classDef agentStyle fill:#A3DA8D,stroke:#333,stroke-width:2px; %% Medium Green for Specialized Agents
+    classDef resourceStyle fill:#FFB6C1,stroke:#333,stroke-width:2px; %% Pink for Tools/Resources - Conceptual
+    classDef transparentStyle fill:#FFF,stroke:#FFF,0px,font-size:30px
+    
+
+    title[<u>Conceptual Diagram</u>]:::transparentStyle
+    title-->User
+    
+    %% Define Nodes
+    User(User)
+    Supervisor[Supervisor Agent]:::supervisorStyle
+    StockAgent[Stock Agent]:::agentStyle
+    WeatherAgent[Weather Agent]:::agentStyle
+    RAGAgent[RAG Agent]:::agentStyle
+    %% Add other specialized agents as needed (e.g., AccountAgent, DocProcessingAgent)
+    FinalResponse(Final Response)
+
+    %% Conceptual representation of tools/resources accessed by specialized agents
+    ToolsResources(Tools & Resources):::resourceStyle
+
+
+    %% Define Flow (Edges)
+    User -- "Query" --> Supervisor;
+
+    %% Supervisor routes to specialized agents
+    Supervisor -- "Route to Stock" --> StockAgent;
+    Supervisor -- "Route to Weather" --> WeatherAgent;
+    Supervisor -- "Route to RAG" --> RAGAgent;
+    %% Add routing to other agents
+
+
+    %% Specialized agents perform tasks and return to supervisor (implicitly via state or explicit edge)
+    %% Using dotted edges and labels to show the flow returning to Supervisor
+    StockAgent -. "Result / Done" .-> Supervisor;
+    WeatherAgent -. "Result / Done" .-> Supervisor;
+    RAGAgent -. "Result / Done" .-> Supervisor;
+
+
+    %% Specialized Agents interact with their tools/resources
+     %% Conceptual link - actual implementation varies
+    StockAgent --> ToolsResources;
+    WeatherAgent --> ToolsResources;
+    RAGAgent --> ToolsResources;
+    %% Other agents also interact
+
+
+    %% Supervisor decides final response
+    Supervisor -- "Generate Final Response" --> FinalResponse;
+
+   linkStyle 0 stroke:#FFF,stroke-width:0;
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;

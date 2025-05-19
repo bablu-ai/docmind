@@ -1,0 +1,57 @@
+%% title: Conceptual Agent LangGraph Flow (Simplified)
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font
+      'fontSize': '14px',             %% Slightly smaller font size for simplicity
+      'primaryColor': '#A3DA8D',       %% Color for LangGraph nodes
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333'        %% Dark text for readability
+    },
+    'flowchart': {
+      'curve': 'basis' %% Use 'basis' or 'linear' for curved lines
+    },
+    'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+flowchart TD
+
+    %% Define Node Styles (simplified for this graph)
+    classDef graphNodeStyle fill:#A3DA8D,stroke:#333,stroke-width:2px;
+    classDef decisionStyle fill:#FFFF99,stroke:#333,stroke-width:2px; %% Yellow for decision
+
+    %% Define Nodes representing LangGraph steps
+    Start(Receive Query):::graphNodeStyle
+    %% Decision Node based on query intent
+    DecideAction{Determine Action}:::decisionStyle
+    CallStock[Call Stock Tool]:::graphNodeStyle
+    CallWeather[Call Weather Tool]:::graphNodeStyle
+    CallRAG[Call RAG Tool]:::graphNodeStyle
+    ProcessResults[Process & Synthesize Results]:::graphNodeStyle
+    End(Provide Final Response):::graphNodeStyle
+
+    %% Define Flow (Edges) showing transitions
+    Start --> DecideAction;
+
+    %% Conditional edges from the Decision Node
+    DecideAction -- "If Stock" --> CallStock;
+    DecideAction -- "If Weather" --> CallWeather;
+    DecideAction -- "If RAG" --> CallRAG;
+    %% Edge for queries not requiring specific tools or after tool calls
+    DecideAction -- "Other / Consolidate" --> ProcessResults;
+
+    %% Edges from tool calls leading to result processing
+    CallStock --> ProcessResults;
+    CallWeather --> ProcessResults;
+    CallRAG --> ProcessResults;
+
+    %% Final step
+    ProcessResults --> End;
+
+    %% Example of a potential loop or re-evaluation (optional, for illustration)
+    %% ProcessResults -- "Needs More Info?" --> DecideAction;
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;

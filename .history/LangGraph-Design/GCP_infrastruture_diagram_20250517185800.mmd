@@ -1,0 +1,119 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#E3F2FD',        /* Light Blue - GCP background */
+      'nodeBorder': '#1A73E8',         /* Google Blue - component borders */
+      'lineColor': '#4285F4',          /* Google Blue - connection lines */
+      'primaryTextColor': '#202124',   /* Google Dark Grey */
+      'gcpServiceColor': '#FFFFFF',    /* White - for GCP service boxes */
+      'gcpCategoryColor': '#BBDEFB',   /* Lighter Blue - for GCP service categories */
+      'dataStoreColor': '#FFCCBC',     /* Light Coral - for databases */
+      'edgeLabelBackground':'#E8F0FE', /* Lighter Google Blue for edge labels */
+      'clusterBkg': '#E3F2FD'         /* Light Blue for main cluster */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef gcpService fill:#FFFFFF,stroke:#1A73E8,stroke-width:2px,shape:rectangle;
+    classDef gcpCategory fill:#BBDEFB,stroke:#1A73E8,stroke-width:1px,shape:roundrect;
+    classDef dataStoreService fill:#FFCCBC,stroke:#BF360C,stroke-width:2px,shape:cylinder;
+    classDef appComponent fill:#C8E6C9,stroke:#2E7D32,stroke-width:1.5px,shape:roundrect; /* Light Green for App Components */
+    classDef external fill:#FCE4EC,stroke:#D81B60,stroke-width:1.5px,shape:rectangle; /* Light Pink for External */
+
+    %% External Entities
+    User["User"]:::external;
+    Admin["Admin/Curator"]:::external;
+    External_APIs["External Info APIs<br/>(Stock, Weather, etc.)"]:::external;
+
+    subgraph GCP_Project ["Google Cloud Platform Project"]
+        direction TB
+
+        subgraph Networking_CDN ["Networking & CDN"]
+            Cloud_CDN["Cloud CDN"]:::gcpService;
+            Cloud_LoadBalancer["Cloud Load Balancing<br/>(HTTP/S)"]:::gcpService;
+            VPC_Network["VPC Network & Subnets"]:::gcpCategory;
+            Firewall_Rules["Firewall Rules"]:::gcpService;
+            Cloud_DNS["Cloud DNS"]:::gcpService;
+            Cloud_LoadBalancer --> Cloud_CDN;
+        end
+        
+        subgraph Compute_Services ["Compute & Hosting Services"]
+            React_UI_Hosting["Cloud Run for React UI<br/>(Stateless Frontend)"]:::appComponent;
+            Backend_API_Service["Cloud Run / GKE for Backend API<br/>(FastAPI/Python)"]:::appComponent;
+            Agent_Core_Service["Cloud Run / GKE for Agent Core<br/>(LangGraph, Python)"]:::appComponent;
+            Doc_Ingestion_Service["Cloud Functions / Cloud Run for Document Ingestion<br/>(LightRAG Processor)"]:::appComponent;
+            LTM_Updater_Service["Cloud Scheduler + Cloud Functions / Cloud Run<br/>for LTM Background Updater"]:::appComponent;
+            
+            Cloud_CDN --> React_UI_Hosting;
+            Cloud_LoadBalancer --> Backend_API_Service;
+            Backend_API_Service -- "Invokes" --> Agent_Core_Service;
+        end
+
+        subgraph AI_ML_Services ["AI & Machine Learning Services (Vertex AI)"]
+            Vertex_AI_Endpoints["Vertex AI Endpoints for LLMs<br/>(Gemini Models via LiteLLM integration)"]:::gcpService;
+            Vertex_AI_Embeddings["Vertex AI Embeddings API<br/>(for RAG & Episodic Memory)"]:::gcpService;
+            Vertex_AI_Pipelines["Vertex AI Pipelines<br/>(Optional for complex ML/Ingestion workflows)"]:::gcpService;
+            
+            Agent_Core_Service -- "Calls (via LiteLLM)" --> Vertex_AI_Endpoints;
+            Doc_Ingestion_Service -- "Uses for Embeddings" --> Vertex_AI_Embeddings;
+            LTM_Updater_Service -- "May use for Analysis" --> Vertex_AI_Endpoints;
+        end
+
+        subgraph Database_Storage_Services ["Database & Storage Services"]
+            Cloud_Storage_Buckets["Cloud Storage Buckets<br/>(Raw Docs, Temp Files, Static Assets)"]:::dataStoreService;
+            Firestore_MongoDB["Firestore in Native Mode or MongoDB Atlas on GCP<br/>(User, Prefs, Conv. Logs, LTM, Doc Metadata)"]:::dataStoreService;
+            Vertex_AI_Vector_Search["Vertex AI Vector Search / AlloyDB AI<br/>(RAG KB, Episodic Memory Traces)"]:::dataStoreService;
+            Memorystore_Redis["Memorystore for Redis<br/>(Active Conversation Cache - STM)"]:::dataStoreService;
+
+            React_UI_Hosting -- "Serves Static Assets from" --> Cloud_Storage_Buckets;
+            Doc_Ingestion_Service -- "Stores Raw Docs to" --> Cloud_Storage_Buckets;
+            Doc_Ingestion_Service -- "Writes Metadata to" --> Firestore_MongoDB;
+            Doc_Ingestion_Service -- "Writes Embeddings/Chunks to" --> Vertex_AI_Vector_Search;
+
+            Backend_API_Service -- "Accesses User/Prefs/History" --> Firestore_MongoDB;
+            Agent_Core_Service -- "Accesses STM" --> Memorystore_Redis;
+            Agent_Core_Service -- "Accesses LTM/Metadata" --> Firestore_MongoDB;
+            Agent_Core_Service -- "Accesses RAG KB/Episodic" --> Vertex_AI_Vector_Search;
+            LTM_Updater_Service -- "Reads Episodic/Logs from" --> Vertex_AI_Vector_Search;
+            LTM_Updater_Service -- "Reads Logs from" --> Firestore_MongoDB;
+            LTM_Updater_Service -- "Writes LTM to" --> Firestore_MongoDB;
+        end
+        
+        subgraph Observability_Security_Management ["Observability, Security & Management"]
+            Cloud_Logging["Cloud Logging"]:::gcpService;
+            Cloud_Monitoring["Cloud Monitoring"]:::gcpService;
+            Cloud_Trace["Cloud Trace<br/>(OpenTelemetry Integration)"]:::gcpService;
+            IAM["Identity and Access Management (IAM)"]:::gcpService;
+            Secret_Manager["Secret Manager<br/>(API Keys, DB Credentials)"]:::gcpService;
+            Cloud_Scheduler["Cloud Scheduler<br/>(Triggers LTM Updater)"]:::gcpService;
+
+            Cloud_Scheduler -- "Triggers" --> LTM_Updater_Service;
+        end
+
+        %% Connecting Compute to Observability & Security
+        Compute_Services -- "Sends Logs/Metrics/Traces" --> Observability_Security_Management;
+        Compute_Services -- "Uses Secrets from" --> Secret_Manager;
+        Compute_Services -- "Permissions via" --> IAM;
+        Database_Storage_Services -- "Permissions via" --> IAM;
+        AI_ML_Services -- "Permissions via" --> IAM;
+
+
+        %% Connecting to External (Outside GCP Project but part of overall system)
+        Backend_API_Service -- "Calls" --> External_APIs;
+        Doc_Ingestion_Service -- "Scrapes from (Not shown)" --> External_APIs; %% Web Sources are external
+
+    end
+
+    %% User/Admin Access Flow
+    User -- "HTTPS" --> Cloud_LoadBalancer;
+    Admin -- "HTTPS (Admin UI/API)" --> Cloud_LoadBalancer;
+
+
+    %% title Infrastructure Diagram - Deployment on GCP

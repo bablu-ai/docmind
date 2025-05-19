@@ -1,0 +1,87 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       древний пергамент (для фона графа)
+      'nodeBorder': '#8B4513',        седельно-коричневый (для границ узлов)
+      'lineColor': '#A0522D',         охра (для линий)
+      'primaryTextColor': '#5C4033',  темно-коричневый (для текста)
+      'secondaryColor': '#DEB887',    светло-коричневый (для узлов инструментов)
+      'tertiaryColor': '#F5DEB3',     пшеничный (для узлов обработки)
+      'edgeLabelBackground':'#FFFFE0', светло-желтый (для меток ребер)
+      'clusterBkg': '#FFFFE0'       светло-желтый (для фона кластеров)
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef langGraphCore fill:#FFFACD,stroke:#8B4513,stroke-width:2px;
+    classDef toolNode fill:#DEB887,stroke:#8B4513,stroke-width:2px;
+    classDef logicNode fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef decisionNode fill:#FFE4B5,stroke:#8B4513,stroke-width:2px,shape:diamond;
+    classDef memoryNode fill:#E6E6FA,stroke:#8B4513,stroke-width:2px,shape:cylinder;
+    classDef stateNode fill:#FAFAD2,stroke:#8B4513,stroke-width:1px,shape:parallelogram;
+
+    Start[Start: Receive User Query]:::langGraphCore
+    STM_Read[Read STM]:::memoryNode
+    ParseQuery[Parse & Deconstruct Query Node (LLM)]:::logicNode
+    Decision_MultiPart{Multi-Part Query?}:::decisionNode
+
+    subgraph "Task Execution Flow"
+        direction LR
+        TaskPlanner[Plan Execution Sequence Node]:::logicNode
+
+        subgraph "Parallelizable Task Group A"
+            Tool_Stock[Stock Info Tool Node]:::toolNode
+            Tool_Weather[Weather Tool Node]:::toolNode
+        end
+
+        subgraph "Sequential Task Group B"
+            Tool_Search[Enhanced Search Tool Node]:::toolNode
+            Tool_DocProcess[Document Processing Tool Node]:::toolNode
+            Tool_Search --> Tool_DocProcess
+        end
+
+        Tool_Account[Account API Tool Node]:::toolNode
+        State_Update1[Update State with Tool Results A]:::stateNode
+        State_Update2[Update State with Tool Results B]:::stateNode
+        State_Update3[Update State with Account Results]:::stateNode
+    end
+
+    SynthesizeResults[Synthesize All Collected Results Node (LLM)]:::logicNode
+    STM_Write[Write STM & Log Episodic Data]:::memoryNode
+    End_Phase6[End: To Final Response Refiner]:::langGraphCore
+
+    %% Connections
+    Start --> STM_Read;
+    STM_Read --> ParseQuery;
+    ParseQuery --> Decision_MultiPart;
+
+    Decision_MultiPart -- Yes --> TaskPlanner;
+    Decision_MultiPart -- No (Single Task) --> RouteToSingleTool;
+
+    TaskPlanner --> Tool_Stock;
+    TaskPlanner --> Tool_Weather;
+    % Simplified, could be more complex routing
+    TaskPlanner -- After A or B --> Tool_Account; %
+
+    Tool_Stock --> State_Update1;
+    Tool_Weather --> State_Update1;
+
+    TaskPlanner --> Tool_Search;
+    Tool_DocProcess --> State_Update2;
+
+    Tool_Account --> State_Update3;
+
+    State_Update1 --> MaybeSynthesizeA[Decision: More Tasks?];
+    State_Update2 --> MaybeSynthesizeB[Decision: More Tasks?];
+    State_Update3 --> MaybeSynthesizeC[Decision: More Tasks?];
+
+    MaybeSynthesizeA -- No / All Group A Done --> SynthesizeResults;
+    MaybeSynthesizeB -- No / All Group B Done --> SynthesizeResults;
+    Maybe

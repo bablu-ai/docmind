@@ -1,0 +1,87 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities */
+      'processColor': '#FFFACD',      /* lemonchiffon - for processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect; /* Light cyan for other Level 1 processes */
+
+    %% External Entities & Other Level 1 Processes (acting as sources/sinks for P1.0)
+    User["User"]:::entity;
+    Admin["Admin/Curator"]:::entity;
+    P2_Orchestrate_Response["P2.0 Orchestrate Response"]:::externalProcess;
+    P5_Ingest_Knowledge["P5.0 Ingest & Process Knowledge Sources"]:::externalProcess;
+    P7_Record_System_Traces["P7.0 Record System Traces"]:::externalProcess;
+
+    %% Data Store directly interacting with P1.0
+    Mongo_UserPrefsConv["DS1: User, Preferences &<br/>Conversation Data (MongoDB)"]:::dataStore;
+
+    %% Sub-Processes within P1.0 Manage User Inputs & Display Outputs
+    subgraph P1_Process ["Process 1.0: Manage User Inputs & Display Outputs"]
+        direction TB
+        P1_1_Receive_User_Chat_Input["1.1 Receive & Validate<br/>User Chat Input"]:::process;
+        P1_2_Handle_User_Selections["1.2 Process User<br/>UI Selections<br/>(LLM, History, Prefs)"]:::process;
+        P1_3_Format_Query_For_Agent["1.3 Format Query for<br/>Agent Orchestration"]:::process;
+        P1_4_Receive_Admin_Input["1.4 Receive & Validate<br/>Admin Ingestion Input"]:::process;
+        P1_5_Format_Data_For_Display["1.5 Format Agent Response<br/>& UI Data for User"]:::process;
+        P1_6_Manage_User_Profile_Data["1.6 Manage User Profile<br/>& Preference Data"]:::process;
+        P1_7_Log_Interaction_Trace["1.7 Log UI Interaction<br/>Trace"]:::process;
+    end
+    
+    %% Data Flows for P1.0
+
+    %% User Chat Input
+    User -- "User Query" --> P1_1_Receive_User_Chat_Input;
+    P1_1_Receive_User_Chat_Input -- "Validated User Query" --> P1_3_Format_Query_For_Agent;
+    P1_3_Format_Query_For_Agent -- "Formatted User Query" --> P2_Orchestrate_Response;
+    
+    %% User UI Selections (LLM Choice, History Actions, Preferences)
+    User -- "UI Selections (LLM Choice, History Action Requests, Preference Updates)" --> P1_2_Handle_User_Selections;
+    P1_2_Handle_User_Selections -- "LLM Choice Data" --> P1_3_Format_Query_For_Agent; %% LLM choice might affect query formatting or context
+    P1_2_Handle_User_Selections -- "History Action Request (View, Rename, Delete)" --> P1_6_Manage_User_Profile_Data;
+    P1_2_Handle_User_Selections -- "Preference Update Data" --> P1_6_Manage_User_Profile_Data;
+    Mongo_UserPrefsConv -- "Stored User Details, Preferences, History List" --> P1_2_Handle_User_Selections; %% For displaying current state
+    
+    %% Admin Inputs
+    Admin -- "Document File/URL, Metadata" --> P1_4_Receive_Admin_Input;
+    P1_4_Receive_Admin_Input -- "Validated Raw Document/URL for Ingestion" --> P5_Ingest_Knowledge;
+    P5_Ingest_Knowledge -- "Ingestion Status" --> P1_5_Format_Data_For_Display; %% Status comes back to be formatted
+    P1_5_Format_Data_For_Display -- "Formatted Ingestion Feedback" --> Admin;
+
+    %% Formatting and Displaying Responses to User
+    P2_Orchestrate_Response -- "Data for UI Response (Agent Answer, History, Models)" --> P1_5_Format_Data_For_Display;
+    P1_5_Format_Data_For_Display -- "Chat Response, Displayed History, Model List, Preference Settings" --> User;
+
+    %% Managing User Profile and Preferences
+    P1_6_Manage_User_Profile_Data -- "User Details & Preference Data (to store)" --> Mongo_UserPrefsConv;
+    Mongo_UserPrefsConv -- "Confirmation/Updated Data" --> P1_6_Manage_User_Profile_Data;
+    P1_6_Manage_User_Profile_Data -- "Updated Preferences Display Data" --> P1_5_Format_Data_For_Display; %% To refresh UI
+
+    %% Logging Traces
+    P1_1_Receive_User_Chat_Input -- "Input Trace" --> P1_7_Log_Interaction_Trace;
+    P1_2_Handle_User_Selections -- "Selection Trace" --> P1_7_Log_Interaction_Trace;
+    P1_4_Receive_Admin_Input -- "Admin Input Trace" --> P1_7_Log_Interaction_Trace;
+    P1_5_Format_Data_For_Display -- "Display Trace" --> P1_7_Log_Interaction_Trace;
+    P1_7_Log_Interaction_Trace -- "Operational Traces" --> P7_Record_System_Traces;
+
+    %% title Level 2 DFD for P1.0: Manage User Inputs & Display Outputs

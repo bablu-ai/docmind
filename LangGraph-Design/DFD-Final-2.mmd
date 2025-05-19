@@ -1,0 +1,112 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities */
+      'processColor': '#FFFACD',      /* lemonchiffon - for processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'externalProcessColor': '#E0FFFF', /* Light cyan for other Level 1 processes */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph LR
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect;
+
+    %% External Processes (Sources/Sinks for P2.0)
+    P1_UI_Interaction["P1.0 Manage User Inputs<br/>& Display Outputs"]:::externalProcess;
+    P3_Tool_Execution["P3.0 Execute External Tools"]:::externalProcess;
+    P4_RAG_Processing["P4.0 Retrieve & Augment<br/>Content (RAG Pipeline)"]:::externalProcess;
+    P7_Record_System_Traces["P7.0 Record System Traces"]:::externalProcess;
+
+    %% Data Stores interacting with P2.0
+    ActiveConvCache["DS4: Active Conversation<br/>Cache (STM)"]:::dataStore;
+    Mongo_UserPrefsConv["DS1: User, Preferences &<br/>Conversation Data (MongoDB)"]:::dataStore;
+    Mongo_LTM_Metadata["DS2: LTM & Document<br/>Metadata (MongoDB)"]:::dataStore;
+    VectorDB_RAG_Episodic["DS3: Knowledge Base &<br/>Episodic Traces (Vector DB)"]:::dataStore;
+
+    %% Sub-Processes within P2.0 Orchestrate Response
+    subgraph P2_Process ["Process 2.0: Orchestrate Response (Agent LangGraph Core)"]
+        direction TB
+        P2_1_Initialize_State["2.1 Initialize/Load<br/>Agent State & STM"]:::process;
+        P2_2_Analyze_Query_Plan["2.2 Analyze Query & Plan<br/>Execution Path (LLM Router)"]:::process;
+        P2_3_Dispatch_Task["2.3 Dispatch Task<br/>(to Tool/RAG/Direct)"]:::process;
+        P2_4_Process_Tool_Result["2.4 Process & Integrate<br/>Tool Result"]:::process;
+        P2_5_Process_RAG_Result["2.5 Process & Integrate<br/>RAG Result"]:::process;
+        P2_6_Synthesize_Information["2.6 Synthesize Information<br/>& Refine Context (LLM)"]:::process;
+        P2_7_Consult_LTM["2.7 Consult Long-Term<br/>Memory (LTM)"]:::process;
+        P2_8_Prepare_Output_Data["2.8 Prepare Output Data<br/>for UI"]:::process;
+        P2_9_Log_Interaction_Details["2.9 Log Interaction Details<br/>(Conv. & Episodic)"]:::process;
+        P2_10_Log_Orchestration_Trace["2.10 Log Orchestration<br/>Trace"]:::process;
+    end
+
+    %% Data Flows for P2.0
+
+    %% Input from P1.0 and STM Loading
+    P1_UI_Interaction -- "Formatted User Query" --> P2_1_Initialize_State;
+    P2_1_Initialize_State -- "Active Conversation Context (Read)" --> ActiveConvCache;
+    P2_1_Initialize_State -- "Initialized Agent State (Query + STM)" --> P2_2_Analyze_Query_Plan;
+    
+    %% Query Analysis, Planning, and LTM Consultation
+    P2_2_Analyze_Query_Plan -- "LTM Query" --> P2_7_Consult_LTM;
+    P2_7_Consult_LTM -- "LTM Data Request" --> Mongo_LTM_Metadata;
+    Mongo_LTM_Metadata -- "LTM Data (Insights, Patterns)" --> P2_7_Consult_LTM;
+    P2_7_Consult_LTM -- "Relevant LTM Insights" --> P2_2_Analyze_Query_Plan;
+    P2_2_Analyze_Query_Plan -- "Execution Plan (Tool/RAG/Direct)" --> P2_3_Dispatch_Task;
+    P2_2_Analyze_Query_Plan -- "Updated STM Data (Write)" --> ActiveConvCache;
+
+    %% Task Dispatching
+    P2_3_Dispatch_Task -- "Tool Call Request" --> P3_Tool_Execution;
+    P3_Tool_Execution -- "Tool Output Data" --> P2_4_Process_Tool_Result;
+    
+    P2_3_Dispatch_Task -- "Content Retrieval Request (Query + Context)" --> P4_RAG_Processing;
+    P4_RAG_Processing -- "Augmented Content" --> P2_5_Process_RAG_Result;
+
+    P2_3_Dispatch_Task -- "Data for Direct LLM Synthesis (No Tool/RAG)" --> P2_6_Synthesize_Information;
+
+    %% Processing Results
+    P2_4_Process_Tool_Result -- "Processed Tool Data" --> P2_6_Synthesize_Information;
+    P2_4_Process_Tool_Result -- "Updated STM Data (Write)" --> ActiveConvCache;
+
+    P2_5_Process_RAG_Result -- "Processed RAG Data" --> P2_6_Synthesize_Information;
+    P2_5_Process_RAG_Result -- "Updated STM Data (Write)" --> ActiveConvCache;
+
+    %% Synthesizing Information and Preparing Output
+    P2_6_Synthesize_Information -- "Synthesized Information & Final Context" --> P2_8_Prepare_Output_Data;
+    P2_6_Synthesize_Information -- "Updated STM Data (Write)" --> ActiveConvCache;
+    P2_8_Prepare_Output_Data -- "Data for UI Response (Agent Answer, History Context, etc.)" --> P1_UI_Interaction;
+
+    %% Logging
+    P2_8_Prepare_Output_Data -- "Interaction Summary for Logging" --> P2_9_Log_Interaction_Details;
+    P2_9_Log_Interaction_Details -- "Conversation Turn Log" --> Mongo_UserPrefsConv;
+    P2_9_Log_Interaction_Details -- "Detailed Interaction Traces (Embeddings, Steps)" --> VectorDB_RAG_Episodic;
+    
+    P2_1_Initialize_State -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_2_Analyze_Query_Plan -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_3_Dispatch_Task -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_4_Process_Tool_Result -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_5_Process_RAG_Result -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_6_Synthesize_Information -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_7_Consult_LTM -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_8_Prepare_Output_Data -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_9_Log_Interaction_Details -- "Trace Info" --> P2_10_Log_Orchestration_Trace;
+    P2_10_Log_Orchestration_Trace -- "Execution Traces" --> P7_Record_System_Traces;
+
+    linkStyle default interpolate basis; 
+
+    %% title Level 2 DFD for P2.0: Orchestrate Response (Agent LangGraph Core)
+a

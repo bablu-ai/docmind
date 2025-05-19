@@ -1,0 +1,179 @@
+%% title: Revised Phase 4 Architecture Diagram: Introduce RAG Specialized Agent & Vector Database
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font
+      'fontSize': '16px',             %% Slightly larger font size
+      'primaryColor': '#ADD8E6',       %% Light Blue (UI)
+      'secondaryColor': '#90EE90',      %% Light Green (Backend/Supervisor)
+      'tertiaryColor': '#A3DA8D',       %% Medium Green (Specialized Agent)
+      'quaternaryColor': '#FFB6C1',     %% Light Red/Pink (Database/Memory/Resources)
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333',       %% Dark text for readability
+      'clusterBorder': '#BBB',          %% Lighter border for subgraphs
+      'clusterBkg': '#F9f9f9'           %% Light background for subgraphs
+    },
+    'flowchart': {
+      'curve': 'basis' %% Use 'basis' or 'linear' for curved lines
+    },
+    'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+flowchart TD
+
+    %% Define Custom Styles
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    %% Backend and Supervisor color
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;
+    %% Specialized Agent color
+    classDef agentStyle fill:#A3DA8D,stroke:#333,stroke-width:2px;
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    %% Tools/Resources color
+    classDef resourceStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface]:::uiStyle
+    end
+
+    %% Backend Services contains the core application logic
+    subgraph BS[Backend Services]
+        direction TB
+        BackendAPI[Backend API]:::backendStyle
+
+        %% Main LangGraph orchestrated by the Supervisor
+        subgraph SupervisorGraph[Supervisor Agent LangGraph]
+            direction TB
+            Input(Receive Query)
+            %% Supervisor Node decides routing
+            SupervisorNode{Supervisor Decision}:::backendStyle
+            %% First Specialized Agent Node (Stock Agent)
+            StockAgentNode(Stock Agent):::agentStyle
+            %% Node to process results from the Stock agent
+            ProcessStockResult[Process Stock Result]
+            %% Second Specialized Agent Node (Weather Agent)
+            WeatherAgentNode(Weather Agent):::agentStyle
+            %% Node to process results from the Weather agent
+            ProcessWeatherResult[Process Weather Result]
+            %% New: RAG Specialized Agent Node
+            RAGAgentNode(RAG Agent):::agentStyle
+            %% New: Node to process results from the RAG agent
+            ProcessRagResult[Process RAG Result]
+            %% Node to finalize the response before sending back
+            FinalizeResponse[Finalize Response]
+        end
+
+        %% LLM Gateway for abstracting LLM calls
+        subgraph LG[LLM Gateway]
+            direction TB
+            %% LiteLLM component
+            LiteLLMGateway{{LiteLLM}}:::externalStyle
+        end
+
+        %% Data Storage for user and conversation data, and Vector DB
+        subgraph DS[Data Storage]
+             direction TB
+             %% User and Conversation History Data in MongoDB
+             MongoDB[/MongoDB<br>User/Conv Data\]:::dbStyle
+             %% New: Vector Database for RAG
+             VectorDB[(Vector Database<br>Chroma/FAISS)]:::dbStyle
+        end
+    end
+
+    %% External APIs and services
+    subgraph ED[External Dependencies]
+        direction TB
+        %% External LLM Provider
+        ExternalLLM[(External LLM Provider)]:::externalStyle
+        %% Stock API used by the Stock Agent
+        StockAPI[(External Stock API)]:::externalStyle
+        %% Weather API used by the Weather Agent
+        WeatherAPI[(External Weather API)]:::externalStyle
+        %% Potential other external tools for RAG (e.g., web search if RAG agent can do that)
+        OtherExternalTools((Other RAG Tools)):::externalStyle
+    end
+
+    %% Define Flow (Edges)
+
+    %% Frontend sends queries to Backend API
+    FE -- "User Query" --> BackendAPI;
+    %% Backend API sends response back to Frontend
+    BackendAPI -- "Response" --> FE;
+
+    %% Backend API invokes the Supervisor LangGraph
+    BackendAPI -- "Invoke Supervisor" --> Input;
+
+    %% Flow within Supervisor LangGraph
+    Input --> SupervisorNode;
+
+    %% Supervisor routes to Specialized Agents (Stock, Weather, or RAG)
+    SupervisorNode -- "Route to Stock" --> StockAgentNode;
+    SupervisorNode -- "Route to Weather" --> WeatherAgentNode;
+    %% New: Routing to RAG Agent
+    SupervisorNode -- "Route to RAG" --> RAGAgentNode;
+    %% Simplified: Supervisor can also finalize directly for simple queries or after receiving results
+    SupervisorNode -- "Other / Consolidate / Finalize" --> FinalizeResponse;
+
+    %% Specialized Agent performs task and returns to Supervisor flow (conceptual return via state update)
+    %% Stock Agent task and result processing
+    StockAgentNode --> ProcessStockResult;
+    %% Weather Agent task and result processing
+    WeatherAgentNode --> ProcessWeatherResult;
+    %% New: RAG Agent task and result processing
+    RAGAgentNode --> ProcessRagResult;
+
+    %% Results are available for Supervisor after processing
+    ProcessStockResult -. "Result to State" .-> SupervisorNode;
+    ProcessWeatherResult -. "Result to State" .-> SupervisorNode;
+    ProcessRagResult -. "Result to State" .-> SupervisorNode; 
+
+    %% Specialized Agents interact with their tools/databases
+    %% Stock Agent calls the external Stock API
+    StockAgentNode -- "Call API" --> StockAPI;
+    %% Agent gets data from the tool
+    StockAPI -- "Data" --> StockAgentNode;
+    %% Weather Agent calls the external Weather API
+    WeatherAgentNode -- "Call API" --> WeatherAPI;
+    %% Agent gets data from the tool
+    WeatherAPI -- "Data" --> WeatherAgentNode;
+    %% New: RAG Agent interacts with the Vector Database
+    RAGAgentNode -- "Query DB" --> VectorDB;
+    VectorDB -- "Search Results" --> RAGAgentNode;
+    %% New: RAG Agent might use other external tools (like web search)
+    RAGAgentNode -- "Uses" --> OtherExternalTools;
+
+
+    %% LLM interactions (via Gateway)
+    %% Supervisor might use LLM for routing decisions
+    SupervisorNode -- "LLM Call" --> LG;
+    %% Specialized Agents might use LLM internally (e.g., for processing or tool use)
+    StockAgentNode -- "LLM Call (Optional)" --> LG;
+    ProcessStockResult -- "LLM Call (Optional)" --> LG;
+    WeatherAgentNode -- "LLM Call (Optional)" --> LG;
+    ProcessWeatherResult -- "LLM Call (Optional)" --> LG;
+    %% New: RAG Agent might use LLM (e.g., for query rephrasing, answer synthesis within agent)
+    RAGAgentNode -- "LLM Call (Optional)" --> LG; 
+    ProcessRagResult -- "LLM Call (Optional)" --> LG; %% New: RAG Result Processing might use LLM (e.g., for synthesizing RAG results)
+    %% Final response generation uses LLM via the Gateway
+    FinalizeResponse -- "LLM Call" --> LG;
+
+    %% LiteLLM Gateway interacts with the External LLM Provider
+    LG -- "Request to LLM" --> ExternalLLM;
+    ExternalLLM -- "Response from LLM" --> LG;
+
+    %% Backend API interacts with Data Storage (for user/conv data)
+    BackendAPI -- "DB Ops" --> DS;
+    DS -- "Data" --> BackendAPI;
+
+    %% Final response path from Supervisor LangGraph back to Backend API
+    FinalizeResponse -- "Final Response" --> BackendAPI;
+
+
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    linkStyle default interpolate basis;

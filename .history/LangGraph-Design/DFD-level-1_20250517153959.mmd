@@ -1,0 +1,111 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px', /* Slightly smaller for more complex DFD */
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities */
+      'processColor': '#FFFACD',      /* lemonchiffon - for processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'edgeLabelBackground':'#F0F8FF',/* aliceblue - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    %% Define Styles
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect; /* Rounded rectangle for processes */
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder; /* Cylinder for data stores */
+
+    %% External Entities (from Level 0)
+    User["User"]:::entity;
+    Admin["Admin/Content Curator"]:::entity;
+    External_Info_APIs["External Information APIs<br/>(Stock, Weather, etc.)"]:::entity;
+    Web_Sources["Web Sources<br/>(for scraping)"]:::entity;
+
+    %% Data Stores
+    DS1_MongoDB["DS1: MongoDB<br/>(Users, Prefs, Conv. Logs, LTM, Doc Metadata)"]:::dataStore;
+    DS2_VectorDB["DS2: Vector DB<br/>(RAG Knowledge Base, Episodic Memory Traces)"]:::dataStore;
+    DS3_STM["DS3: Short-Term Memory<br/>(Active Conversation State)"]:::dataStore;
+    DS4_TracingBackend["DS4: Tracing Backend<br/>(Observability Data)"]:::dataStore;
+
+    %% Main Processes (Decomposition of Level 0 System Process)
+    subgraph System_Processes ["Agentic RAG Chatbot System - Internal Processes"]
+        direction TB
+        P1_UI_Interaction["P1: UI & Interaction Management"]:::process;
+        P2_Query_Orchestration["P2: Query Orchestration & Agent Logic<br/>(Main LangGraph)"]:::process;
+        P3_Tool_Execution["P3: Tool Execution &<br/>External API Interfacing"]:::process;
+        P4_RAG_Processing["P4: RAG Processing<br/>(LightRAG Advanced Features)"]:::process;
+        P5_Doc_Ingestion["P5: Document Ingestion & Processing<br/>(LightRAG Doc Processor)"]:::process;
+        P6_Memory_Update_BG["P6: Background Memory Updater<br/>(Scheduled LangGraph)"]:::process;
+        P7_Observability["P7: Observability Data Collection"]:::process;
+    end
+    
+    %% Data Flows - User Interactions
+    User -- "User Query" --> P1_UI_Interaction;
+    User -- "Preferences Input" --> P1_UI_Interaction;
+    User -- "LLM Selection Input" --> P1_UI_Interaction;
+    P1_UI_Interaction -- "Formatted Query & Context" --> P2_Query_Orchestration;
+    P1_UI_Interaction -- "Chat Response & UI Data" --> User;
+    P1_UI_Interaction -- "User & Prefs Data" --> DS1_MongoDB;
+    DS1_MongoDB -- "User & Prefs Data" --> P1_UI_Interaction;
+    DS1_MongoDB -- "Conversation History (for display)" --> P1_UI_Interaction;
+
+    %% Data Flows - Admin/Content Curator Interactions
+    Admin -- "Document Uploads / URLs / Metadata" --> P1_UI_Interaction;
+    P1_UI_Interaction -- "Raw Document / URL / Metadata" --> P5_Doc_Ingestion;
+    P5_Doc_Ingestion -- "Ingestion Status" --> P1_UI_Interaction;
+    P1_UI_Interaction -- "Admin System Config" --> Admin; %% Placeholder for potential direct config if not through P5
+
+    %% Data Flows - Query Orchestration and Execution
+    P2_Query_Orchestration -- "Reads/Writes" --> DS3_STM;
+    P2_Query_Orchestration -- "Tool Execution Request" --> P3_Tool_Execution;
+    P3_Tool_Execution -- "Tool Result" --> P2_Query_Orchestration;
+    P2_Query_Orchestration -- "RAG Request (Query, Context)" --> P4_RAG_Processing;
+    P4_RAG_Processing -- "Synthesized RAG Results" --> P2_Query_Orchestration;
+    P2_Query_Orchestration -- "Final Synthesized Info for Response" --> P1_UI_Interaction;
+    P2_Query_Orchestration -- "Episodic Data (Interaction Log Entry)" --> DS1_MongoDB;
+    P2_Query_Orchestration -- "Episodic Data (Interaction Traces/Embeddings)" --> DS2_VectorDB;
+    P2_Query_Orchestration -- "LTM Query" --> DS1_MongoDB;
+    DS1_MongoDB -- "LTM Insights" --> P2_Query_Orchestration;
+
+    %% Data Flows - Tool Execution & External APIs
+    P3_Tool_Execution -- "API Request (Stock, Weather)" --> External_Info_APIs;
+    External_Info_APIs -- "API Data (Stock, Weather)" --> P3_Tool_Execution;
+
+    %% Data Flows - RAG Processing
+    P4_RAG_Processing -- "Vector Search Query" --> DS2_VectorDB;
+    DS2_VectorDB -- "Retrieved Document Chunks" --> P4_RAG_Processing;
+    P4_RAG_Processing -- "Document Metadata Query" --> DS1_MongoDB;
+    DS1_MongoDB -- "Document Metadata" --> P4_RAG_Processing;
+
+    %% Data Flows - Document Ingestion
+    P5_Doc_Ingestion -- "Scraping Request" --> Web_Sources;
+    Web_Sources -- "Scraped Web Content" --> P5_Doc_Ingestion;
+    P5_Doc_Ingestion -- "Processed Chunks & Embeddings" --> DS2_VectorDB;
+    P5_Doc_Ingestion -- "Extracted/Input Metadata" --> DS1_MongoDB;
+
+    %% Data Flows - Background Memory Updater
+    P6_Memory_Update_BG -- "Reads Episodic Traces" --> DS2_VectorDB;
+    P6_Memory_Update_BG -- "Reads Conversation Logs" --> DS1_MongoDB;
+    P6_Memory_Update_BG -- "Writes LTM Insights" --> DS1_MongoDB;
+
+    %% Data Flows - Observability
+    P1_UI_Interaction -- "Trace Data" --> P7_Observability;
+    P2_Query_Orchestration -- "Trace Data" --> P7_Observability;
+    P3_Tool_Execution -- "Trace Data" --> P7_Observability;
+    P4_RAG_Processing -- "Trace Data" --> P7_Observability;
+    P5_Doc_Ingestion -- "Trace Data" --> P7_Observability;
+    P7_Observability -- "Exported Traces" --> DS4_TracingBackend;
+
+    %% title Level 1 Data Flow Diagram

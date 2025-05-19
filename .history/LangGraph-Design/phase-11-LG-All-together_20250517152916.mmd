@@ -1,0 +1,79 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFF8DC',        /* cornsilk - main background/default */
+      'nodeBorder': '#8B4513',         /* saddle brown */
+      'lineColor': '#A0522D',          /* sienna */
+      'primaryTextColor': '#5C4033',   /* dark brown */
+      'uiColor': '#ADD8E6',            /* light blue - User Interface */
+      'backendColor': '#90EE90',       /* light green - Backend System */
+      'dataStoreColor': '#FFB6C1',     /* light pink - Data Stores */
+      'llmColor': '#F0E68C',           /* khaki - LLM Services */
+      'externalSvcColor': '#D2B48C',   /* tan - External Services */
+      'observabilityColor': '#D8BFD8',  /* thistle - Observability */
+      'ingestionColor': '#FFE4C4',      /* bisque - Ingestion Pipeline */
+      'edgeLabelBackground':'#FFFFE0',  /* light yellow */
+      'clusterBkg': '#FAFAFA'        /* very light grey for clusters */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph RL
+    classDef uiSystem fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef backendSystem fill:#90EE90,stroke:#38761D,stroke-width:2px;
+    classDef dataStores fill:#FFB6C1,stroke:#A52A2A,stroke-width:2px;
+    classDef llmServices fill:#F0E68C,stroke:#BDB76B,stroke-width:2px;
+    classDef externalServices fill:#D2B48C,stroke:#8B4513,stroke-width:2px;
+    classDef observabilityPlatform fill:#D8BFD8,stroke:#483D8B,stroke-width:2px;
+    classDef ingestionPipeline fill:#FFE4C4,stroke:#8B4513,stroke-width:2px;
+
+
+    subgraph FE[<b>Frontend</b>]
+        direction TB
+        UserInterface["React UI Application"]:::uiSystem;
+    end
+    %% Main System Blocks
+   
+    BackendCore["Backend System (Python)<br/>- API Layer<br/>- Main Agent LangGraph<br/>- Background Memory Updater"]:::backendSystem;
+    DataStorage["Comprehensive Data Stores<br/>- MongoDB (User, Conv. History, LTM, Metadata)<br/>- Vector DB (Episodic Memory, RAG Docs)"]:::dataStores;
+    LLM_Services["LLM Services Abstraction<br/>(via LiteLLM)"]:::llmServices;
+    External_APIs["External APIs & Services<br/>(Stock, Weather, Web Scraping Targets, etc.)"]:::externalServices;
+    Observability["Observability Platform<br/>(OpenTelemetry Collector, Tracing Backend)"]:::observabilityPlatform;
+    DocIngestion["Document Ingestion Pipeline<br/>(UI/Triggers, LightRAG Document Processor)"]:::ingestionPipeline;
+
+    %% Core Interactions
+    UserInterface -- "User Interactions & Queries" --> BackendCore;
+    BackendCore -- "Responses & UI Data" --> UserInterface;
+
+    BackendCore -- "Accesses/Updates Data" --> DataStorage;
+    BackendCore -- "LLM Calls (via LiteLLM)" --> LLM_Services;
+    BackendCore -- "Utilizes External APIs" --> External_APIs;
+    
+    DocIngestion -- "Populates Knowledge Bases" --> DataStorage;
+    DocIngestion -- "May use for Web Scraping" --> External_APIs;
+
+
+    %% Observability Interactions
+    UserInterface -- "Sends Traces" --> Observability;
+    BackendCore -- "Sends Traces" --> Observability;
+    DocIngestion -- "Sends Traces (Optional)" --> Observability;
+
+
+    %% Applying classes to nodes explicitly
+    class UserInterface uiSystem;
+    class BackendCore backendSystem;
+    class DataStorage dataStores;
+    class LLM_Services llmServices;
+    class External_APIs externalServices;
+    class Observability observabilityPlatform;
+    class DocIngestion ingestionPipeline;
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    linkStyle default interpolate basis; 
+
+    %% title High-Level System Architecture Diagram (Post-All Phases)

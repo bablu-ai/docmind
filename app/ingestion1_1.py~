@@ -1,0 +1,309 @@
+# app/ingestion 1.1 .py
+import json
+import os
+import uuid
+from pathlib import Path
+from typing import List, Optional
+
+import bs4
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import EmbeddingsFilter
+from langchain.schema.document import Document
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import WebBaseLoader
+# from langchain_community.vectorstores.chroma import Chroma as LCLChroma
+from langchain_chroma import Chroma as LCLChroma, Chroma
+from chromadb import Documents, EmbeddingFunction, Embeddings
+
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from app.ai_models import AVAILABLE_EMBEDDINGS
+from config import CHROMA_STORE_DIR, DATA_DIR, METADATA_FILE, WEB_META_FILE, PROJECT_ROOT
+
+
+def get_embedding():
+    return OpenAIEmbeddings(
+        model=AVAILABLE_EMBEDDINGS["openai-small"]["model"],
+        base_url="https://api.openai.com/v1",
+        api_key=os.getenv("OPENAI_API_KEY"))
+
+
+class DocumentProcessor:
+    def __init__(self, chunk_size: int = 1024, chunk_overlap: int = 20):
+        """Initialize the document processor.
+        """
+        self.metadata_map = {}
+        self.project_root = Path(__file__).parent.parent
+        # Load metadata for documents
+        with open(METADATA_FILE, "r") as f:
+            self.metadata_map = json.load(f)
+        # Load website data from JSON
+        with open(WEB_META_FILE, "r") as f:
+            self.website_data = json.load(f)
+
+    """
+    Purpose of bs4.SoupStrainer:
+    '''Selective Parsing: It allows you to specify which tags, attributes,
+    or text content you're interested in before Beautiful Soup constructs the parse tree.
+    Efficiency: By avoiding parsing unnecessary parts of a webpage, it speeds up processing time
+    and reduces memory consumption, especially when dealing with large or complex HTML/XML documents
+    """
+
+    def ingest_web_pages(self):
+        total_chunks: List[Document] = []
+        for item in self.website_data["MoneyMarket"]:
+            url = item["Website URL"]
+            metadata = {
+                "source": url,
+                "title": item["Page Title"],
+                "description": item["Description"],
+                "category": item["Category"],
+                "keywords": item["Keywords"],
+                "language": item["Language"]
+            }
+
+            # SoupStrainer for filtering content
+            content_strainer = bs4.SoupStrainer("div", attrs={"class": "content"})
+            loader_content = WebBaseLoader(url, bs_kwargs={"parse_only": content_strainer})
+            _documents = loader_content.load()
+            if _documents:
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000,
+                                                               chunk_overlap=200,
+                                                               # separators=["\n\n", "\n", ".", "!", "?", ":", ",", " "],
+                                                               is_separator_regex=False,
+                                                               length_function=len,
+                                                               add_start_index=True
+                                                               )
+                chunks = text_splitter.split_documents(_documents)
+                chunks = self.calculate_document_id(chunks)
+
+                for chunk in chunks:
+                    chunk.metadata.update(metadata)
+                total_chunks.extend(chunks)
+
+        return total_chunks
+
+    def ingest_documents(self, directory: str = None) -> List[Document]:
+        """load documents from directory or specific file paths."""
+        _documents = []
+        if directory is None:
+            directory = DATA_DIR
+
+        for filename in os.listdir(directory):
+            if filename.lower().endswith(".pdf"):
+                file_path = os.path.join(directory, filename)
+
+                # Load the PDF
+                loader = PyPDFLoader(file_path)
+                _documents = loader.load()
+
+                # Text Splitter
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+                chunks = text_splitter.split_documents(_documents)
+                chunks = self.calculate_document_id(chunks)
+                # Metadata for current file
+                file_metadata = self.metadata_map.get(filename, {})  # Get metadata by filename
+                # Update each chunk's metadata
+                for chunk in chunks:
+                    chunk.metadata.update(file_metadata)
+                    chunk.metadata["source"] = file_path
+
+        print(f"Loaded {len(_documents)} document(s)")
+
+        return _documents
+
+    def save_to_chroma(self, _documents: List[Document]):
+
+        chroma_db = LCLChroma(persist_directory=CHROMA_STORE_DIR,
+                              embedding_function=get_embedding)
+        # Get document IDs directly from metadata
+        document_ids = [doc.metadata.get("id") for doc in _documents]
+
+        # Get existing IDs from ChromaDB
+        try:
+            collection = chroma_db.get_collection(name="MyStockCollection")
+            if collection is None:
+                collection = chroma_db.create_collection(name="MyStockCollection")
+                existing_ids = set()
+            else:
+                # Get existing IDs
+                existing_results = collection.get(include=[])
+                existing_ids = set(existing_results["ids"]) if existing_results["ids"] else set()
+        except Exception as e:
+            print(f"Error: {e}")
+            return
+
+        # Filter out documents that already exist
+        new_docs = []
+        new_docs_ids = []
+        for doc, doc_id in zip(documents, document_ids):
+            if doc_id not in existing_ids:
+                new_docs.append(doc)
+                new_docs_ids.append(doc_id)
+
+        # Only add documents if there are new ones
+        if new_docs:
+            chroma_db.add_documents(
+                documents=new_docs,
+                ids=new_docs_ids
+            )
+            # Persist changes to disk
+            chroma_db.persist()
+            print(f"Added {len(new_docs)} new documents to ChromaDB. Skipped {len(documents) - len(new_docs)} existing documents.")
+        else:
+            print("No new documents to add to ChromaDB. All documents already exist.")
+
+
+        chroma_db.from_documents(documents,
+                                 ids=document_ids,
+                                 collection_name="MyStockCollection")
+
+        # chroma_db.add_documents(_documents)
+
+    def delete_chroma_collection(self):
+        chroma_db = LCLChroma(persist_directory=CHROMA_STORE_DIR,
+                              embedding_function=get_embedding)
+        chroma_db.delete_collection()
+
+    def get_metadata(self, filePath: Path):
+        # Get relative path from project root
+        relative_path = Path(filePath).resolve().relative_to(PROJECT_ROOT).as_posix()
+        return self.metadata_map.get(relative_path, {})
+
+    def calculate_document_id(self, chunks):
+        last_page_id = None
+        current_page_index = 0
+        for chunk in chunks:
+            source = chunk.metadata.get("source", "")
+            page = chunk.metadata.get("page", "")
+            current_page_id = f"{source}:{page}"
+
+            if current_page_id == last_page_id:
+                current_page_index += 1
+            else:
+                current_page_index = 0
+
+            chunk_id = f"{current_page_id}:{current_page_index}"
+            last_page_id = current_page_id
+            chunk.metadata["id"] = chunk_id
+        return chunks
+
+    def load_index(self) -> Optional[Chroma]:
+        """Load a previously saved index."""
+        if not os.path.exists(CHROMA_STORE_DIR):
+            print(f"Index not found at {CHROMA_STORE_DIR}")
+            return None
+
+        self.vector_store = Chroma(
+            persist_directory=CHROMA_STORE_DIR,
+            embedding_function=self.embedding_model,
+            collection_name=self.collection_name
+        )
+
+        return self.vector_store
+
+    def load_index(self) -> Optional[Chroma]:
+        """Load a previously saved index."""
+        if not os.path.exists(CHROMA_STORE_DIR):
+            print(f"Index not found at {CHROMA_STORE_DIR}")
+            return None
+
+        self.vector_store = Chroma(
+            persist_directory=CHROMA_STORE_DIR,
+            embedding_function=self.embedding_model,
+            collection_name=self.collection_name
+        )
+
+        return self.vector_store
+
+    def update_index(self, documents: List[Document]) -> Chroma:
+        """Update the index with new documents, avoiding duplicates."""
+        # Load existing index if available
+        if self.vector_store is None:
+            try:
+                self.load_index()
+            except Exception:
+                # If loading fails, create a new index
+                return self.create_vector_index(documents)
+
+        # Get document IDs directly from metadata
+        document_ids = [doc.metadata.get("id") for doc in documents]
+
+        # Get existing IDs from ChromaDB
+        try:
+            collection = self.vector_store.get()
+            existing_ids = set(collection["ids"]) if collection["ids"] else set()
+        except Exception as e:
+            print(f"Error accessing collection: {e}")
+            existing_ids = set()
+
+        # Filter out documents that already exist
+        new_docs = []
+        new_docs_ids = []
+        for doc, doc_id in zip(documents, document_ids):
+            if doc_id not in existing_ids:
+                new_docs.append(doc)
+                new_docs_ids.append(doc_id)
+
+        # Only add documents if there are new ones
+        if new_docs:
+            self.vector_store.add_documents(
+                documents=new_docs,
+                ids=new_docs_ids
+            )
+            # Persist changes to disk
+            self.vector_store.persist()
+            print(f"Added {len(new_docs)} new documents to ChromaDB. Skipped {len(documents) - len(new_docs)} existing documents.")
+        else:
+            print("No new documents to add to ChromaDB. All documents already exist.")
+
+        return self.vector_store
+
+    def create_contextual_retriever(self, threshold=0.7, k=4):
+        """Create a contextual compression retriever with embeddings filter."""
+        base_retriever = self.create_retriever(k=k)
+
+        # Create embeddings filter
+        filter_compressor = EmbeddingsFilter(
+            embeddings=self.embedding_model,
+            similarity_threshold=threshold
+        )
+
+        # Create contextual compression retriever
+        contextual_retriever = ContextualCompressionRetriever(
+            base_compressor=filter_compressor,
+            base_retriever=base_retriever
+        )
+
+        return contextual_retriever
+    def create_contextual_retriever(self, threshold=0.7, k=4):
+        """Create a contextual compression retriever with embeddings filter."""
+        base_retriever = self.create_retriever(k=k)
+
+        # Create embeddings filter
+        filter_compressor = EmbeddingsFilter(
+            embeddings=self.embedding_model,
+            similarity_threshold=threshold
+        )
+
+        # Create contextual compression retriever
+        contextual_retriever = ContextualCompressionRetriever(
+            base_compressor=filter_compressor,
+            base_retriever=base_retriever
+        )
+
+        return contextual_retriever
+
+# Example usage
+if __name__ == "__main__":
+    processor = DocumentProcessor()
+    documents = processor.ingest_documents()
+
+    processor.save_to_chroma(documents)
+    print(f"Document Ingestion complete. Created {len(documents)} documents.")
+
+    web_documents = processor.ingest_web_pages()
+    processor.save_to_chroma(web_documents)
+
+    print(f"Web page Ingestion complete. Created {len(web_documents)} documents.")

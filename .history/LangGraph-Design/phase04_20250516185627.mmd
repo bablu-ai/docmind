@@ -1,0 +1,158 @@
+%% title: Phase 4 Architecture Diagram: Introduce Vector DB Search Tool Node
+%%
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font
+      'fontSize': '16px',             %% Slightly larger font size
+      'primaryColor': '#ADD8E6',       %% Light Blue (UI)
+      'secondaryColor': '#90EE90',      %% Light Green (Backend)
+      'tertiaryColor': '#FFFF99',       %% Light Yellow (External/LLM Gateway)
+      'quaternaryColor': '#FFB6C1',     %% Light Red/Pink (Database/Memory)
+      'quinaryColor': '#A3DA8D',        %% Medium Green (LangGraph Nodes)
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333',       %% Dark text for readability
+      'clusterBorder': '#BBB',          %% Lighter border for subgraphs
+      'clusterBkg': '#F9F9F9'           %% Light background for subgraphs
+    },
+    'flowchart': {
+      'curve': 'basis' %% Use 'basis' or 'linear' for curved lines
+    },
+    'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+flowchart TD
+
+    %% Define Custom Styles
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;
+    classDef llmStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    classDef graphNodeStyle fill:#A3DA8D,stroke:#333,stroke-width:2px;
+    classDef memoryStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface]:::uiStyle
+    end
+
+    subgraph BS[Backend Services]\n (Agent, Gateway, Data Access)
+        direction TB
+        BackendAPI[Backend API]:::backendStyle
+
+        subgraph AG[Agent LangGraph]
+            direction TB
+            InputNode(Receive Query):::graphNodeStyle
+            %% Decision node (LLM-based routing to tools)
+            RouteQuery{Route Query / Intent}:::graphNodeStyle
+            CallStockTool[Call Stock Tool]:::graphNodeStyle
+            ProcessStockResult[Process Stock Result]:::graphNodeStyle
+            CallWeatherTool[Call Weather Tool]:::graphNodeStyle
+            ProcessWeatherResult[Process Weather Result]:::graphNodeStyle
+            %% New RAG Vector DB Search Tool node
+            CallRagTool[Call RAG Search Tool]:::graphNodeStyle
+            %% New Process RAG Result node
+            ProcessRagResult[Process RAG Result]:::graphNodeStyle
+            FormatFinalResponse[Format Final Response]:::graphNodeStyle
+        end
+
+        subgraph LG[LLM Gateway]
+            direction TB
+            LiteLLMGateway{{LiteLLM}}:::llmStyle
+        end
+
+        subgraph DS[Data Storage]
+             direction TB
+             %% User and Conversation History Data
+             MongoDB[/MongoDB<br>User/Conv Data\]:::dbStyle
+             %% New Vector Database for RAG
+             VectorDB[(Vector Database<br>Chroma/FAISS)]:::dbStyle
+        end
+    end
+
+    %% Node for STM
+    STM[(Short-Term Memory<br>ConversationBufferMemory)]:::memoryStyle
+
+    subgraph ED[External Dependencies]
+        direction TB
+        ExternalLLM[(External LLM Provider)]:::externalStyle
+        StockAPI[(External Stock API)]:::externalStyle
+        WeatherAPI[(External Weather API)]:::externalStyle
+    end
+
+    %% Define Flow (Edges)
+
+    %% Frontend <-> Backend API
+    FE -- "User Query" --> BackendAPI;
+    BackendAPI -- "Response" --> FE;
+
+    %% Backend API -> LangGraph Entry
+    BackendAPI -- "Invoke with Query" --> InputNode;
+
+    %% Flow within LangGraph (AG)
+    InputNode --> RouteQuery;
+
+    %% Conditional Routing from RouteQuery (now includes RAG tool)
+    RouteQuery -- "If Stock Query" --> CallStockTool;
+    RouteQuery -- "If Weather Query" --> CallWeatherTool;
+    %% New: Routing to RAG tool
+    RouteQuery -- "If RAG Query" --> CallRagTool;
+    %% Placeholder/Simplified path for other queries
+    RouteQuery -- "Else (Simplified)" --> FormatFinalResponse;
+
+    %% Tool Call and Result Processing
+    CallStockTool -- "Tool Output" --> ProcessStockResult;
+    CallWeatherTool -- "Tool Output" --> ProcessWeatherResult;
+    %% New: RAG Tool output processing
+    CallRagTool -- "Retrieval Result" --> ProcessRagResult;
+
+
+    %% Processing results lead to final formatting
+    ProcessStockResult -- "Synthesized Info" --> FormatFinalResponse;
+    ProcessWeatherResult -- "Synthesized Info" --> FormatFinalResponse;
+    %% New: RAG Result processing leads to final formatting
+    ProcessRagResult -- "Synthesized Info" --> FormatFinalResponse;
+
+
+    %% LangGraph returns final response to BackendAPI
+    FormatFinalResponse -- "Final Response" --> BackendAPI;
+
+    %% LangGraph nodes interact with STM
+    %% Show interaction between the whole graph subgraph and STM
+    AG <-- "Access/Update" --> STM;
+
+    %% Explicit LLM Interaction (from AG nodes via LG)
+    RouteQuery -- "LLM Call" --> LG;
+    ProcessStockResult -- "LLM Call" --> LG;
+    ProcessWeatherResult -- "LLM Call" --> LG;
+    ProcessRagResult -- "LLM Call" --> LG; %% New: RAG result processing might use LLM
+    FormatFinalResponse -- "LLM Call" --> LG;
+
+    %% LiteLLM Gateway <-> External LLM Provider
+    LG -- "Request to LLM" --> ExternalLLM;
+    ExternalLLM -- "Response from LLM" --> LG;
+
+    %% Tool Interactions with External APIs
+    CallStockTool -- "Call API" --> StockAPI;
+    StockAPI -- "Data" --> CallStockTool;
+
+    CallWeatherTool -- "Call API" --> WeatherAPI;
+    WeatherAPI -- "Data" --> CallWeatherTool;
+
+    %% New: RAG Tool interacts with Vector Database
+    CallRagTool -- "Query DB" --> VectorDB;
+    VectorDB -- "Search Results" --> CallRagTool;
+
+
+    %% Backend API <-> Data Storage (for user/conv data)
+    BackendAPI -- "DB Ops" --> DS;
+    DS -- "Data" --> BackendAPI;
+
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;

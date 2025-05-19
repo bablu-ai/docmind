@@ -1,0 +1,24 @@
+{
+  "data/TaxMinimizationForHighEarner.pdf": {
+    "author": "Pankaj Kumar",
+    "department": "Taxation",
+    "created_date": "2025-01-15",
+    "mime_type": "application/octet-stream",
+    "file_path": "data/TaxMinimizationForHighEarner.pdf"
+  },
+   "data/[O'Reilly, 2009] grep - Pocket Reference.pdf": {
+    "author": "Jon & Klus",
+    "department": "Unix",
+    "created_date": "2029-03-15",
+    "mime_type": "application/octet-stream",
+    "file_path": "data/[O'Reilly, 2009] grep - Pocket Reference.pdf"
+  },
+  "data/What_Is_Azure_Kubernetes_Service.txt": {
+    "author": "Pankaj Kumar",
+    "department": "AI/ML",
+    "created_date": "2024-02-10",
+    "mime_type": "text/plain",
+    "file_path": "data/What_Is_Azure_Kubernetes_Service.txt"
+  }
+
+}

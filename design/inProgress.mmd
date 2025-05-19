@@ -1,0 +1,152 @@
+graph LR
+    subgraph User-Interface
+        UI[Web Browser Interface] --> A["User Prompt"];
+        
+    end
+
+
+    subgraph Query-Routing-System
+        A[User Query] --> B{{Master Agent<br>Query Router }}
+        AgentEx -- Tool Planning --> B(Query Routing System);
+        B -- LLM for Classification --> C{Tool Selection};
+        B -- Routes to --> C{Tool Selection Logic}
+        I -- Selects Tool --> D[Selected Tool]
+        C -- Uses --> I
+    end
+
+    subgraph API-Component
+        AA[API Gateway] --> AB[Authentication Service];
+        AA --> AC[Database Service];
+        AA --> AD[External API Service];
+        
+        AD --> AE[Yahoo Finance Connector];
+        AD --> AF[Search Engine Connector];
+        AD --> AG[Other External APIs];
+        AC --Saves--> MongoDB;
+    end
+
+    subgraph MongoDB
+        O[(MongoDB)]
+        O1[Collection: User Information]
+        O2(Collection: Conversation History)
+        O3(Collection: Preferences)
+    end
+
+
+    subgraph Tool-Suite
+        subgraph Stock-Information-Tool
+            D[Stock Information Processor]
+        end
+        subgraph Account-API-Tool
+            E[Account Data Processor]
+        end
+        subgraph Enhanced-Search-Tool
+            F[LLM for Rephrasing] --> G[Search Request Handler];
+        end
+        subgraph Document-Processing-Tool
+            H[LightRAG Document Processor] -- Fallback --> I[LangChain Document Loaders];
+            J(Document Files) --> H;
+            J --> I;
+        end
+        subgraph Response-Refinement-Tool
+            K[LLM for Tone Adjustment & Summarization]
+        end
+
+        C -- Stock Info--> D;
+        C -- Account 360 API --> E;
+        C -- Enhanced Search --> F;
+        C -- Document Processing --> H;
+        C -- Other --> G;
+    end
+
+    %% Connect Tools to API Component
+    D --> AA;
+    E --> AA;
+    G --> AA;
+    H --> AA;
+    I --> AA;
+    
+    %% External API connections
+    AE -- Yahoo Finance API --> AD;
+    AF -- Web Search API --> AD;
+    
+    %% Results processing
+ 
+
+    L -- Update Context --> ContextBuilder[Context Assembly];
+    ContextBuilder -- Consolidated Context --> M{Agent Decision};
+    M -- More Info Needed --> B;
+    M -- All Info Gathered --> N(Response Refinement);
+    N --> LLMFinal[Final LLM Processing];
+    LLMFinal --> MongoDB;
+
+    subgraph Memory-and-Context-Management
+        P[ConversationBufferMemory] -- Stores History --> B;
+        P -- Stores History --> F;
+        P -- Stores History --> L;
+        P -- Persistent Storage --> AC;
+    end
+
+    %% User management flow
+    
+    O -- Save Conversation --> MongoDB;
+    
+
+    style User-Interface fill:#add8e6,stroke:#333,stroke-width:2px;
+    style User-Interaction fill:#90ee90,stroke:#333,stroke-width:2px;
+    style Query-Routing-System fill:#ffb6c1,stroke:#333,stroke-width:2px;
+    style API-Component fill:#ffffe0,stroke:#333,stroke-width:2px;
+    style Tool-Suite fill:#1155,stroke:#333,stroke-width:2px;
+    style Stock-Information-Tool fill:#e6e6fa,stroke:#333,stroke-width:1px;
+    style Account-API-Tool fill:#f0e68c,stroke:#333,stroke-width:1px;
+    style Enhanced-Search-Tool fill:#afeeee,stroke:#333,stroke-width:1px;
+    style Document-Processing-Tool fill:#ffdab9,stroke:#333,stroke-width:1px;
+    style Response-Refinement-Tool fill:#d3d3d3,stroke:#333,stroke-width:1px;
+    style Memory-and-Context-Management fill:#f5deb3,stroke:#333,stroke-width:2px;
+
+  %% Styling
+    style A fill:#90EE90,stroke:#333,stroke-width:2px
+    style B fill:#87CEFA,stroke:#333,stroke-width:2px
+    style C fill:#FFFFE0,stroke:#333,stroke-width:2px
+    style D fill:#87CEFA,stroke:#333,stroke-width:2px
+    style E fill:#87CEFA,stroke:#333,stroke-width:2px
+    style F fill:#90EE90,stroke:#333,stroke-width:2px
+    style G fill:#90EE90,stroke:#333,stroke-width:2px
+    style H fill:#E0FFFF,stroke:#333,stroke-width:2px
+    style I fill:#E0FFFF,stroke:#333,stroke-width:2px
+    style J fill:#FFE4C4,stroke:#333,stroke-width:2px
+    style K fill:#E6E6FA,stroke:#333,stroke-width:2px
+    style L fill:#E6E6FA,stroke:#333,stroke-width:2px
+    style M fill:#E6E6FA,stroke:#333,stroke-width:2px
+    style N fill:#E6E6FA,stroke:#333,stroke-width:2px
+    style O fill:#E0FFFF,stroke:#333,stroke-width:2px
+    style O1 fill:#ADD8E6,stroke:#333,stroke-width:2px
+    style O2 fill:#ADD8E6,stroke:#333,stroke-width:2px
+    style O3 fill:#ADD8E6,stroke:#333,stroke-width:2px
+    style P fill:#AFEEEE,stroke:#333,stroke-width:2px
+    style Q fill:#AFEEEE,stroke:#333,stroke-width:2px
+    style R fill:#AFEEEE,stroke:#333,stroke-width:2px
+    style S fill:#AFEEEE,stroke:#333,stroke-width:2px
+    %% Flow line styling
+    linkStyle 0 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 1 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 2 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 3 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 4 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 5 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 6 stroke:#4CAF50,stroke-width:2px,curve:smooth
+    linkStyle 7 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 8 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 9 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 10 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 11 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 12 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 13 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 14 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 15 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 16 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 17 stroke:#808080,stroke-width:2px,curve:smooth
+    linkStyle 18 stroke:#808080,stroke-width:2px,curve:smooth
+
+    classDef decision fill:#f0e68c,stroke:#333,stroke-width:2px;
+    class C,M,O decision

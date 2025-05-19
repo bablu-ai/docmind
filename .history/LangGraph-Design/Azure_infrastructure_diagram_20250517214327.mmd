@@ -1,0 +1,119 @@
+---
+config:
+  layout: elk
+  look: handDrawn
+   'theme': base',
+    themeVariables: 
+      fontFamily: 'Segoe UI, Arial, sans-serif'
+      fontSize: '12px'
+      primaryColor: '#F0F8FF'        /* AliceBlue - Azure background */
+      nodeBorder: '#0078D4'         /* Azure Blue - component borders */
+      lineColor: '#004578'          /* Darker Azure Blue - connection lines */
+      primaryTextColor: '#2B2B2B'   /* Near Black */
+      azureServiceColor: '#FFFFFF'    /* White - for Azure service boxes */
+      azureCategoryColor: '#E0F2F7'   /* Lighter Azure Blue - for Azure service categories */
+      dataStoreColor: '#FFDAB9'     /* PeachPuff - for databases */
+      edgeLabelBackground:'#F0F8FF' /* AliceBlue for edge labels */
+      clusterBkg: '#F0F8FF'         /* AliceBlue for main cluster */
+    flowchart: 
+      curve: 'basis'
+---    
+flowchart LR
+ subgraph Networking_Delivery["Networking & Content Delivery"]
+        Azure_CDN["Azure CDN"]
+        Azure_App_Gateway_WAF["Azure Application Gateway with WAF<br>(HTTP/S Load Balancer, Web Application Firewall)"]
+        Azure_VNet["Azure Virtual Network & Subnets"]
+        NSG["Network Security Groups (NSGs)"]
+        Azure_DNS["Azure DNS"]
+  end
+ subgraph Compute_Services_Azure["Compute & Hosting Services"]
+        App_Service_UI["Azure App Service for Web Apps (React UI)<br>(Stateless Frontend)"]
+        App_Service_Backend["Azure App Service / AKS for Backend API<br>(FastAPI/Python Containers)"]
+        App_Service_Agent["Azure App Service / AKS for Agent Core<br>(LangGraph, Python Containers)"]
+        Azure_Functions_Ingestion["Azure Functions / App Service for Document Ingestion<br>(LightRAG Processor)"]
+        Logic_Apps_Functions_LTM["Azure Logic Apps + Azure Functions / App Service<br>for LTM Background Updater"]
+  end
+ subgraph AI_ML_Services_Azure["AI & Machine Learning Services (Azure AI)"]
+        Azure_OpenAI_Service["Azure OpenAI Service<br>(GPT models, potentially Gemini via API if available/integrated)"]
+        Azure_AI_Embeddings["Azure OpenAI Embeddings / Azure AI Search Skills<br>(for RAG &amp; Episodic Memory)"]
+        Azure_Machine_Learning_Pipelines["Azure Machine Learning Pipelines<br>(Optional for complex ML/Ingestion workflows)"]
+  end
+ subgraph Database_Storage_Services_Azure["Database & Storage Services"]
+        Azure_Blob_Storage["Azure Blob Storage<br>(Raw Docs, Temp Files, Static Assets for CDN)"]
+        Azure_Cosmos_DB_MongoDB_API["Azure Cosmos DB API for MongoDB<br>(User, Prefs, Conv. Logs, LTM, Doc Metadata)"]
+        Azure_AI_Search["Azure AI Search (formerly Cognitive Search)<br>(Vector Store for RAG KB, Episodic Memory Traces)"]
+        Azure_Cache_for_Redis["Azure Cache for Redis<br>(Active Conversation Cache - STM)"]
+  end
+ subgraph Observability_Security_Management_Azure["Observability, Security & Management"]
+        Azure_Monitor["Azure Monitor<br>(Logs, Metrics, App Insights for Traces with OpenTelemetry)"]
+        Azure_AD["Microsoft Entra ID (Azure AD)<br>(Identity and Access Management)"]
+        Azure_Key_Vault["Azure Key Vault<br>(API Keys, DB Credentials)"]
+        Azure_Logic_Apps_Scheduler["Azure Logic Apps (Scheduler) / Azure Functions (Timer Trigger)<br>(Triggers LTM Updater)"]
+  end
+ subgraph Azure_Subscription["<b>Azure Subscription Resource Group</b>"]
+    direction TB
+        Networking_Delivery
+        Compute_Services_Azure
+        AI_ML_Services_Azure
+        Database_Storage_Services_Azure
+        Observability_Security_Management_Azure
+        External_APIs["External Info APIs<br>(Stock, Weather, etc.)"]
+  end
+    Azure_App_Gateway_WAF --> Azure_CDN & App_Service_Backend
+    Azure_CDN --> App_Service_UI
+    App_Service_Backend -- Invokes --> App_Service_Agent
+    App_Service_Agent -- Calls (via LiteLLM) --> Azure_OpenAI_Service
+    Azure_Functions_Ingestion -- Uses for Embeddings --> Azure_AI_Embeddings
+    Logic_Apps_Functions_LTM -- May use for Analysis --> Azure_OpenAI_Service
+    App_Service_UI -- Serves Static Assets from --> Azure_Blob_Storage
+    Azure_Functions_Ingestion -- Stores Raw Docs to --> Azure_Blob_Storage
+    Azure_Functions_Ingestion -- Writes Metadata to --> Azure_Cosmos_DB_MongoDB_API
+    Azure_Functions_Ingestion -- Writes Embeddings/Chunks to --> Azure_AI_Search
+    App_Service_Backend -- Accesses User/Prefs/History --> Azure_Cosmos_DB_MongoDB_API
+    App_Service_Agent -- Accesses STM --> Azure_Cache_for_Redis
+    App_Service_Agent -- Accesses LTM/Metadata --> Azure_Cosmos_DB_MongoDB_API
+    App_Service_Agent -- Accesses RAG KB/Episodic --> Azure_AI_Search
+    Logic_Apps_Functions_LTM -- Reads Episodic/Logs from --> Azure_AI_Search
+    Logic_Apps_Functions_LTM -- Reads Logs from --> Azure_Cosmos_DB_MongoDB_API
+    Logic_Apps_Functions_LTM -- Writes LTM to --> Azure_Cosmos_DB_MongoDB_API
+    Azure_Logic_Apps_Scheduler -- Triggers --> Logic_Apps_Functions_LTM
+    Compute_Services_Azure -- Sends Logs/Metrics/Traces --> Azure_Monitor
+    Compute_Services_Azure -- Uses Secrets from --> Azure_Key_Vault
+    Compute_Services_Azure -- Permissions via --> Azure_AD
+    Database_Storage_Services_Azure -- Permissions via --> Azure_AD
+    AI_ML_Services_Azure -- Permissions via --> Azure_AD
+    App_Service_Backend -- Calls --> External_APIs
+    Azure_Functions_Ingestion -- Scrapes from (Not shown) --> External_APIs
+    User["User"] -- HTTPS --> Azure_App_Gateway_WAF
+    Admin["Admin/Curator"] -- HTTPS (Admin UI/API) --> Azure_App_Gateway_WAF
+     Azure_CDN:::azureService
+     Azure_App_Gateway_WAF:::azureService
+     Azure_VNet:::azureCategory
+     NSG:::azureService
+     Azure_DNS:::azureService
+     App_Service_UI:::appComponent
+     App_Service_Backend:::appComponent
+     App_Service_Agent:::appComponent
+     Azure_Functions_Ingestion:::appComponent
+     Logic_Apps_Functions_LTM:::appComponent
+     Azure_OpenAI_Service:::azureService
+     Azure_AI_Embeddings:::azureService
+     Azure_Machine_Learning_Pipelines:::azureService
+     Azure_Blob_Storage:::dataStoreService
+     Azure_Cosmos_DB_MongoDB_API:::dataStoreService
+     Azure_AI_Search:::dataStoreService
+     Azure_Cache_for_Redis:::dataStoreService
+     Azure_Monitor:::azureService
+     Azure_AD:::azureService
+     Azure_Key_Vault:::azureService
+     Azure_Logic_Apps_Scheduler:::azureService
+     External_APIs:::external
+     User:::external
+     Admin:::external
+    classDef azureService fill:#FFFFFF,stroke:#0078D4,stroke-width:2px,shape:rectangle
+    classDef azureCategory fill:#E0F2F7,stroke:#0078D4,stroke-width:1px,shape:roundrect
+    classDef dataStoreService fill:#FFDAB9,stroke:#A0522D,stroke-width:2px,shape:cylinder
+    classDef appComponent fill:#DFF6DD,stroke:#3C763D,stroke-width:1.5px,shape:roundrect 
+    classDef external fill:#FCE4EC,stroke:#D81B60,stroke-width:1.5px,shape:rectangle
+
+    %% title Infrastructure Diagram - Deployment on Azure

@@ -1,0 +1,76 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#FDFD96',        # Light Yellow (Backend Core)
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#ADD8E6',      # Light Blue (UI)
+      'tertiaryColor': '#FFB347',       # Light Orange (LLM)
+      'quadraryColor': '#FFC0CB',       # Pink (Agent/Tools)
+      'quinaryColor': '#90EE90',        # Light Green (External APIs)
+      'senaryColor': '#F5DEB3',         # Wheat (Analyzer)
+    }
+  }
+}%%
+graph LR;
+    %% Define Styles
+    classDef userStyle fill:#C1E1C1,stroke:#508050,stroke-width:2px;      %% Light Green
+    classDef uiStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;         %% Light Blue
+    classDef backendStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;     %% Light Yellow
+    classDef agentStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px;       %% Pink
+    classDef toolStyle fill:#FFC0CB,stroke:#B88088,stroke-width:2px,stroke-dasharray: 5 5; %% Pink Dashed
+    classDef analyzerStyle fill:#F5DEB3,stroke:#A08A65,stroke-width:2px;    %% Wheat
+    classDef llmStyle fill:#FFB347,stroke:#B87A30,stroke-width:2px;         %% Light Orange
+    classDef externalApiStyle fill:#90EE90,stroke:#4CAF50,stroke-width:2px; %% Light Green
+
+    %% Define Nodes and Subgraphs
+    User([User]):::userStyle;
+
+    subgraph Frontend
+        direction LR
+        UI[Chat Interface]:::uiStyle;
+    end
+
+    subgraph Backend
+        direction TB
+        BackendService[Backend API Service]:::backendStyle;
+        Agent[LangChain Agent]:::agentStyle;
+        %% Hexagon shape
+        QueryAnalyzer{{Query Analyzer}}:::analyzerStyle; 
+        StockTool[Stock Info Tool]:::toolStyle;
+
+        
+        Agent -- Sends Query for Analysis --> QueryAnalyzer;
+        QueryAnalyzer -- Analysis Result (Intent/Entities) --> Agent;
+        %% Self-loop for decision logic
+        %%Agent -- Uses Analysis to Decide --> Agent; 
+        Agent -- Uses Tool --> StockTool;
+        Agent -- Direct LLM Call --> LLM[Large Language Model API]:::llmStyle;
+        StockTool -- Formatted Stock Data --> Agent;
+        Agent -- Formatted Response --> BackendService;
+        BackendService --Query--> Agent;
+    end
+
+    subgraph External Services
+        direction LR
+        YahooAPI[Yahoo Finance API]:::externalApiStyle;
+    end
+
+    %% Define Flow (Outer)
+    User -- Query --> UI;
+    UI -- Sends Query --> BackendService;
+
+    StockTool -- Fetches Data --> YahooAPI;
+    YahooAPI -- Stock Data --> StockTool;
+
+    LLM -- LLM Response --> Agent;
+
+    BackendService -- Sends Response --> UI;
+    UI -- Displays Response --> User;
+
+    %% Apply curved lines
+    linkStyle default interpolate basis

@@ -1,0 +1,139 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#FFF0F5',        /* lavenderblush - main background */
+      'nodeBorder': '#800000',         /* maroon - component borders */
+      'lineColor': '#A52A2A',          /* brown - connection lines */
+      'primaryTextColor': '#556B2F',   /* darkolivegreen */
+      'componentBg': '#FFE4E1',        /* mistyrose - for system areas */
+      'securityControlColor': '#F0E68C', /* khaki - for security controls */
+      'threatColor': '#FFC0CB',        /* pink - for threats (use sparingly or as notes) */
+      'edgeLabelBackground':'#FFF5EE', /* seashell - for edge labels */
+      'clusterBkg': '#FAF0E6'         /* linen - for clusters */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef systemArea fill:#FFE4E1,stroke:#800000,stroke-width:2px,shape:rectangle;
+    classDef securityControl fill:#F0E68C,stroke:#800000,stroke-width:1.5px,shape:roundrect;
+    classDef threat fill:#FFB6C1,stroke:#800000,stroke-width:1px,linestyle:dashed,shape:parallelogram;
+
+    %% Major System Areas
+    subgraph UI_Security ["UI Layer (React Frontend)"]
+        direction TB
+        UI_Area[User Interface Components]:::systemArea;
+        SC1_InputValidation["SC1: Input Validation & Sanitization (XSS, SQLi Prevention)"]:::securityControl;
+        SC2_CSRF_Protection["SC2: CSRF Protection Mechanisms"]:::securityControl;
+        SC3_HTTPS_Frontend["SC3: HTTPS for all Client-Server Communication"]:::securityControl;
+        SC4_Content_Security_Policy["SC4: Content Security Policy (CSP)"]:::securityControl;
+        UI_Area -.-> SC1_InputValidation;
+        UI_Area -.-> SC2_CSRF_Protection;
+        UI_Area -.-> SC3_HTTPS_Frontend;
+        UI_Area -.-> SC4_Content_Security_Policy;
+    end
+
+    subgraph API_Security ["API Layer (Backend)"]
+        direction TB
+        API_Area[API Endpoints]:::systemArea;
+        SC5_Authentication["SC5: Strong Authentication (e.g., OAuth 2.0, JWT)"]:::securityControl;
+        SC6_Authorization["SC6: Granular Authorization & Role-Based Access Control (RBAC)"]:::securityControl;
+        SC7_Rate_Limiting_Throttling["SC7: Rate Limiting & Throttling (DoS/Abuse Prevention)"]:::securityControl;
+        SC8_HTTPS_Backend["SC8: HTTPS/TLS for all API Traffic"]:::securityControl;
+        SC9_API_Input_Validation["SC9: Backend API Input Validation"]:::securityControl;
+        SC10_Secrets_Management_API["SC10: Secure Secrets Management for API Keys/DB Credentials"]:::securityControl;
+        API_Area -.-> SC5_Authentication;
+        API_Area -.-> SC6_Authorization;
+        API_Area -.-> SC7_Rate_Limiting_Throttling;
+        API_Area -.-> SC8_HTTPS_Backend;
+        API_Area -.-> SC9_API_Input_Validation;
+        API_Area -.-> SC10_Secrets_Management_API;
+    end
+
+    subgraph Agent_LLM_Security ["Agent Core, LLM & RAG Security"]
+        direction TB
+        Agent_LLM_Area["Agent LangGraph, LiteLLM, RAG Pipeline"]:::systemArea;
+        SC11_Prompt_Injection_Defense["SC11: Prompt Injection Defenses & Output Parsing"]:::securityControl;
+        SC12_Data_Leakage_Prevention["SC12: Data Leakage Prevention in Prompts/Responses"]:::securityControl;
+        SC13_Secure_Tool_Invocation["SC13: Secure & Restricted Tool Invocation"]:::securityControl;
+        SC14_LLM_API_Key_Security["SC14: Secure Handling of External LLM API Keys (via LiteLLM & Secrets Mgmt)"]:::securityControl;
+        SC15_Content_Filtering_Moderation["SC15: Content Filtering & Moderation for LLM I/O"]:::securityControl;
+        SC16_RAG_Access_Control["SC16: Access Controls on RAG Knowledge Base"]:::securityControl;
+        Agent_LLM_Area -.-> SC11_Prompt_Injection_Defense;
+        Agent_LLM_Area -.-> SC12_Data_Leakage_Prevention;
+        Agent_LLM_Area -.-> SC13_Secure_Tool_Invocation;
+        Agent_LLM_Area -.-> SC14_LLM_API_Key_Security;
+        Agent_LLM_Area -.-> SC15_Content_Filtering_Moderation;
+        Agent_LLM_Area -.-> SC16_RAG_Access_Control;
+    end
+
+    subgraph Data_Security ["Data Store Security (MongoDB, VectorDB)"]
+        direction TB
+        Data_Store_Area["Databases (User Data, Conversations, LTM, RAG KB, Episodic)"]:::systemArea;
+        SC17_Encryption_At_Rest["SC17: Encryption at Rest for Sensitive Data"]:::securityControl;
+        SC18_Encryption_In_Transit_DB["SC18: Encryption in Transit for Database Connections"]:::securityControl;
+        SC19_DB_Access_Control["SC19: Strict Database Access Controls & Authentication"]:::securityControl;
+        SC20_Data_Backup_Recovery["SC20: Regular Data Backup & Disaster Recovery Plan"]:::securityControl;
+        SC21_Data_Masking_Anonymization["SC21: Data Masking/Anonymization for Non-Prod Env."]:::securityControl;
+        SC22_Audit_Logging_DB["SC22: Database Audit Logging"]:::securityControl;
+        Data_Store_Area -.-> SC17_Encryption_At_Rest;
+        Data_Store_Area -.-> SC18_Encryption_In_Transit_DB;
+        Data_Store_Area -.-> SC19_DB_Access_Control;
+        Data_Store_Area -.-> SC20_Data_Backup_Recovery;
+        Data_Store_Area -.-> SC21_Data_Masking_Anonymization;
+        Data_Store_Area -.-> SC22_Audit_Logging_DB;
+    end
+    
+    subgraph Memory_Security ["Memory Component Security"]
+        direction TB
+        Memory_Area["STM, Episodic Memory, LTM Components"]:::systemArea;
+        SC23_Sensitive_Data_In_Memory["SC23: Minimize Sensitive Data in Active Memory (STM)"]:::securityControl;
+        SC24_Secure_Episodic_Logging["SC24: Secure Logging/Storage of Episodic Traces"]:::securityControl;
+        SC25_LTM_Access_Control["SC25: Access Controls & Review for LTM Insights"]:::securityControl;
+        Memory_Area -.-> SC23_Sensitive_Data_In_Memory;
+        Memory_Area -.-> SC24_Secure_Episodic_Logging;
+        Memory_Area -.-> SC25_LTM_Access_Control;
+    end
+
+    subgraph Ingestion_Security ["Document Ingestion Security"]
+        direction TB
+        Ingestion_Area["LightRAG Document Processor, File Uploads, Web Scraping"]:::systemArea;
+        SC26_Malware_Scanning["SC26: Malware Scanning for Uploaded Files"]:::securityControl;
+        SC27_Secure_Scraping_Practices["SC27: Secure & Ethical Web Scraping Practices (Rate Limits, Robots.txt)"]:::securityControl;
+        SC28_Ingestion_Input_Validation["SC28: Validation of Ingested Content/Metadata"]:::securityControl;
+        Ingestion_Area -.-> SC26_Malware_Scanning;
+        Ingestion_Area -.-> SC27_Secure_Scraping_Practices;
+        Ingestion_Area -.-> SC28_Ingestion_Input_Validation;
+    end
+
+    subgraph Observability_Security ["Observability Platform Security"]
+        direction TB
+        Observability_Area["Tracing Backend (Jaeger/Phoenix), Otel Collector"]:::systemArea;
+        SC29_Secure_Access_To_Traces["SC29: Secure Access to Logs & Traces (Authentication, Authorization)"]:::securityControl;
+        SC30_Sanitize_Sensitive_Data_Logs["SC30: Sanitize Sensitive Data in Logs/Traces"]:::securityControl;
+        Observability_Area -.-> SC29_Secure_Access_To_Traces;
+        Observability_Area -.-> SC30_Sanitize_Sensitive_Data_Logs;
+    end
+
+    subgraph General_Security_Practices ["General Security Practices"]
+        direction TB
+        General_Area["Cross-Cutting Concerns"]:::systemArea;
+        SC31_Dependency_Scanning["SC31: Regular Dependency Scanning & Patch Management"]:::securityControl;
+        SC32_Network_Security["SC32: Network Segmentation, Firewalls"]:::securityControl;
+        SC33_Security_Audits_Pen_Testing["SC33: Regular Security Audits & Penetration Testing"]:::securityControl;
+        SC34_Incident_Response_Plan["SC34: Incident Response Plan"]:::securityControl;
+        SC35_Least_Privilege_Principle["SC35: Principle of Least Privilege Applied Everywhere"]:::securityControl;
+        General_Area -.-> SC31_Dependency_Scanning;
+        General_Area -.-> SC32_Network_Security;
+        General_Area -.-> SC33_Security_Audits_Pen_Testing;
+        General_Area -.-> SC34_Incident_Response_Plan;
+        General_Area -.-> SC35_Least_Privilege_Principle;
+    end
+
+    title Security Architecture Considerations Diagram

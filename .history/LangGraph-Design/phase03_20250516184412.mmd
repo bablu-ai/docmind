@@ -1,0 +1,149 @@
+%% title: Phase 3 Architecture Diagram: Add Second Tool & LangGraph Routing
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font
+      'fontSize': '16px',             %% Slightly larger font size
+      'primaryColor': '#ADD8E6',       %% Light Blue (UI)
+      'secondaryColor': '#90EE90',      %% Light Green (Backend)
+      'tertiaryColor': '#FFFF99',       %% Light Yellow (External/LLM Gateway)
+      'quaternaryColor': '#FFB6C1',     %% Light Red/Pink (Database/Memory)
+      'quinaryColor': '#A3DA8D',        %% Medium Green (LangGraph Nodes)
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333',       %% Dark text for readability
+      'clusterBorder': '#BBB',          %% Lighter border for subgraphs
+      'clusterBkg': '#F9F9F9'           %% Light background for subgraphs
+    },
+    'flowchart': {
+      'curve': 'basis' %% Use 'basis' or 'linear' for curved lines
+    },
+    'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+
+flowchart LR
+
+    %% Define Custom Styles
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;
+    classDef llmStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    classDef graphNodeStyle fill:#A3DA8D,stroke:#333,stroke-width:2px;
+    classDef memoryStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface]:::uiStyle
+    end
+
+    subgraph BS[Backend Services]
+        direction TB
+        BackendAPI[Backend API]:::backendStyle
+
+        subgraph AG[Agent LangGraph]
+            direction TB
+            InputNode(Receive Query):::graphNodeStyle
+            %% Decision node (LLM-based routing)
+            RouteQuery{Route Query / Intent}:::graphNodeStyle
+            CallStockTool[Call Stock Tool]:::graphNodeStyle
+            ProcessStockResult[Process Stock Result]:::graphNodeStyle
+            %% New Weather Tool node
+            CallWeatherTool[Call Weather Tool]:::graphNodeStyle
+            %% New Process Weather Result node
+            ProcessWeatherResult[Process Weather Result]:::graphNodeStyle
+            FormatFinalResponse[Format Final Response]:::graphNodeStyle
+        end
+
+        subgraph LG[LLM Gateway]
+            direction TB
+            LiteLLMGateway{{LiteLLM}}:::llmStyle
+        end
+
+        subgraph DS[Data Storage]
+             direction TB
+             %% Added more detail to label
+             MongoDB[/MongoDB<br>User/Conv Data\]:::dbStyle
+        end
+    end
+
+    %% Node for STM
+    STM[(Short-Term Memory<br>ConversationBufferMemory)]:::memoryStyle
+
+    subgraph ED[External Dependencies]
+        direction TB
+        ExternalLLM[(External LLM Provider)]:::externalStyle
+        StockAPI[(External Stock API)]:::externalStyle
+        %% New External Weather API
+        WeatherAPI[(External Weather API)]:::externalStyle
+    end
+
+    %% Define Flow (Edges)
+
+    %% Frontend <-> Backend API
+    FE -- "User Query" --> BackendAPI;
+    BackendAPI -- "Response" --> FE;
+
+    %% Backend API -> LangGraph Entry
+    BackendAPI -- "Invoke with Query" --> InputNode;
+
+    %% Flow within LangGraph (AG)
+    InputNode --> RouteQuery;
+
+    %% Conditional Routing from RouteQuery (now supports Stock and Weather)
+    RouteQuery -- "If Stock Query" --> CallStockTool;
+    RouteQuery -- "If Weather Query" --> CallWeatherTool;
+    %% Placeholder/Simplified path for other queries
+    RouteQuery -- "Else (Simplified)" --> FormatFinalResponse;
+
+    %% Tool Call and Result Processing
+    CallStockTool -- "Tool Output" --> ProcessStockResult;
+    CallWeatherTool -- "Tool Output" --> ProcessWeatherResult;
+
+    %% Processing results lead to final formatting
+    ProcessStockResult -- "Synthesized Info" --> FormatFinalResponse;
+    ProcessWeatherResult -- "Synthesized Info" --> FormatFinalResponse;
+
+    %% LangGraph returns final response to BackendAPI
+    FormatFinalResponse -- "Final Response" --> BackendAPI;
+
+    %% LangGraph nodes interact with STM
+    %% InputNode <-- "Access" --> STM; %% Access arrows simplified for readability, connecting subgraph AG to STM indicates accessibility by all nodes within AG
+    %% RouteQuery <-- "Access" --> STM;
+    %% CallStockTool <-- "Access" --> STM;
+    %% ProcessStockResult <-- "Access" --> STM;
+    %% CallWeatherTool <-- "Access" --> STM;
+    %% ProcessWeatherResult <-- "Access" --> STM;
+    %% FormatFinalResponse <-- "Access" --> STM;
+    AG <-- "Access/Update" --> STM; %% Show interaction between the whole graph subgraph and STM
+
+    %% Explicit LLM Interaction (from AG nodes via LG)
+    RouteQuery -- "LLM Call" --> LG;
+    ProcessStockResult -- "LLM Call" --> LG;
+    %% New: Weather result processing uses LLM
+    ProcessWeatherResult -- "LLM Call" --> LG; 
+    FormatFinalResponse -- "LLM Call" --> LG;
+
+    %% LiteLLM Gateway <-> External LLM Provider
+    LG -- "Request to LLM" --> ExternalLLM;
+    ExternalLLM -- "Response from LLM" --> LG;
+
+    %% Tool Interactions with External APIs
+    CallStockTool -- "Call API" --> StockAPI;
+    StockAPI -- "Data" --> CallStockTool;
+
+    %% New: Weather Tool interacts with External Weather API
+    CallWeatherTool -- "Call API" --> WeatherAPI;
+    WeatherAPI -- "Data" --> CallWeatherTool;
+
+    %% Backend API <-> Data Storage
+    BackendAPI -- "DB Ops" --> DS;
+    DS -- "Data" --> BackendAPI;
+
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;

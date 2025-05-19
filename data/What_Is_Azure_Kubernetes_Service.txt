@@ -1,0 +1,68 @@
+All right, Cloud Gurus, welcome back.
+Now that we have laid the foundation for Kubernetes in an unmanaged environment,
+we can now start to discuss Kubernetes in a managed environment,
+specifically Azure. In this section,
+and we are going to first introduce what Azure Kubernetes Service is.
+We are then going to take our foundational knowledge and see how it is applied
+in Azure by: creating a cluster, deploying an application,
+and then demonstrating how that application can be accessed in Azure. All right,
+let's dive right in. In this first lesson,
+we will be discussing the following topics. We will introduce AKS,
+Azure Kubernetes Service.
+We will then get a better understanding of how things work behind the scenes
+when we discuss the AKS architecture. And finally,
+we will show the benefits of having Kubernetes provided as an Azure service.
+If you recall,
+we had mentioned that Kubernetes was originally created by Google,
+but now it is maintained by the Cloud Native Computing Foundation.
+Microsoft is a big partner and contributor to that foundation. In fact,
+one of the co-founders of Kubernetes now works for Microsoft,
+and his name is Brendan Burns. So when it comes to Kubernetes,
+Microsoft is all in. So how is AKS is different from, say,
+running Kubernetes in your own environment? Well,
+Azure provides a free and fully managed container-as-a-service platform to host
+the Kubernetes environment within AKS. Okay,
+but what does that mean practically?
+AKS actually runs and maintains the control plane for you using dedicated
+resources in your Azure subscription. So when you create an AKS cluster,
+Azure automatically creates and configures the control plane for you.
+And this helps with speed and simplicity of operations,
+but you also get the standard Azure resource benefits like high availability.
+From an operations perspective,
+you don't actually see the control plane components.
+You just see the services they provide through the AKS resource.
+And then you interact with the control plane using kubectl.
+Azure also makes it really easy to upgrade the cluster to newer versions.
+So yeah, I could deploy Kubernetes myself and manage it myself. But why do that?
+Why not just focus on the things that I care about, like the worker nodes?
+So the control plane that is actually deployed for you is free.
+When you deploy an AKS resource, you only pay per worker node. In Azure,
+worker nodes run on VM skillsets in the background.
+Azure will create those VMs in the background and then turn those VMs into
+worker nodes of your cluster in your network for you.
+The Linux nodes run a customized Ubuntu OS and the Windows nodes run a
+customized Windows Server 2019 OS.
+On top of taking care of the control plane for you,
+there are also many added benefits of having your Kubernetes cluster in a
+managed Azure service.
+A big one is that AKS comes pre-configured to integrate with Azure Active
+Directory. So you can manage identities using role-based access control.
+It also helps manage operations like upgrading and scaling resources on demand.
+Azure provides different scaling options,
+such as handling the autoscaling based on workload demand as well as node
+capacity.
+This means that not only will Azure deploy new pods if the workloads reach a
+certain threshold, it will also take care of adding new nodes if needed as well.
+And storage. Azure Disk and Azure Files is easily integrated for pod storage.
+Azure Disk is one-to-one, where one pod gets one disk. Azure Files,
+on the other hand, is for shared storage,
+where multiple pods need access to that data.
+There are also networking benefits. AKS integrates with your existing VNet,
+as well as the Azure load balancers and application gateways.
+Azure also provides monitoring services by using Azure Monitor and Log
+Analytics.
+You're also able to integrate and take full advantage of Azure Security Center.
+So in summary, we'd introduced what AKS is.
+We then briefly discussed how the architecture works. And finally,
+we talked about why you should choose AKS for your Kubernetes applications.
+Thank you very much, and I'll see you in the next lesson.

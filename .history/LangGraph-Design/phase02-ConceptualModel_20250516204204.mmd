@@ -1,0 +1,125 @@
+%% title: Revised Phase 2 Architecture Diagram: Supervisor LangGraph & First Specialized Agent
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font
+      'fontSize': '16px',             %% Slightly larger font size
+      'primaryColor': '#ADD8E6',       %% Light Blue (UI)
+      'secondaryColor': '#90EE90',      %% Light Green (Backend/Supervisor)
+      'tertiaryColor': '#A3DA8D',       %% Medium Green (Specialized Agent)
+      'quaternaryColor': '#FFB6C1',     %% Light Red/Pink (Database/Memory/Resources)
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333',       %% Dark text for readability
+      'clusterBorder': '#BBB',          %% Lighter border for subgraphs
+      'clusterBkg': '#F9F9F9'           %% Light background for subgraphs
+    },
+    'flowchart': {
+      'curve': 'basis' %% Use 'basis' or 'linear' for curved lines
+    },
+    'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+flowchart TD
+
+    %% Define Custom Styles
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    %% Backend and Supervisor color
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px; 
+    classDef agentStyle fill:#A3DA8D,stroke:#333,stroke-width:2px; 
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    classDef resourceStyle fill:#FFB6C1,stroke:#333,stroke-width:2px; %% Tools/Resources color
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface]:::uiStyle
+    end
+
+    subgraph BS[Backend Services]\n (Supervisor Agent, Gateway, Data Access)
+        direction TB
+        BackendAPI[Backend API]:::backendStyle
+
+        %% Main LangGraph orchestrated by the Supervisor
+        subgraph SupervisorGraph[Supervisor Agent LangGraph]
+            direction TB
+            Input(Receive Query)
+            SupervisorNode{Supervisor Decision}:::backendStyle %% Supervisor Node
+            StockAgentNode(Stock Agent) :::agentStyle %% Specialized Agent Node
+            ProcessStockResult[Process Stock Result]
+            FinalizeResponse[Finalize Response]
+        end
+
+        subgraph LG[LLM Gateway]
+            direction TB
+            LiteLLMGateway{{LiteLLM}}:::externalStyle %% Using externalStyle for gateway as it connects externally
+        end
+
+        subgraph DS[Data Storage]
+             direction TB
+             %% User and Conversation History Data
+             MongoDB[/MongoDB<br>User/Conv Data\]:::dbStyle
+        end
+    end
+
+    subgraph ED[External Dependencies]
+        direction TB
+        ExternalLLM[(External LLM Provider)]:::externalStyle
+        StockAPI[(External Stock API)]:::externalStyle %% Stock API used by the Stock Agent
+    end
+
+    %% Define Flow (Edges)
+
+    %% Frontend <-> Backend API
+    FE -- "User Query" --> BackendAPI;
+    BackendAPI -- "Response" --> FE;
+
+    %% Backend API -> Supervisor LangGraph Entry
+    BackendAPI -- "Invoke Supervisor" --> Input;
+
+    %% Flow within Supervisor LangGraph
+    Input --> SupervisorNode;
+
+    %% Supervisor routes to Specialized Agent
+    SupervisorNode -- "Route to Stock" --> StockAgentNode;
+    %% Simplified: Supervisor can also finalize directly for simple queries in this phase
+    SupervisorNode -- "Other / Finalize" --> FinalizeResponse;
+
+
+    %% Specialized Agent interaction and return to Supervisor flow (conceptual return via state update)
+    StockAgentNode --> ProcessStockResult; %% Agent performs task, maybe processes internally
+    ProcessStockResult -. "Result to State" .-> SupervisorNode; %% Result is available for Supervisor
+
+
+    %% Specialized Agent interacts with its tools
+    StockAgentNode -- "Call API" --> StockAPI;
+    StockAPI -- "Data" --> StockAgentNode; %% Agent gets data from tool
+
+
+    %% LLM interactions (via Gateway)
+    %% Supervisor might use LLM for routing
+    SupervisorNode -- "LLM Call" --> LG;
+    %% Specialized Agents might use LLM internally (e.g., for processing)
+    StockAgentNode -- "LLM Call (Optional)" --> LG;
+    ProcessStockResult -- "LLM Call (Optional)" --> LG;
+    FinalizeResponse -- "LLM Call" --> LG; %% Final response generation uses LLM
+
+
+    %% LiteLLM Gateway <-> External LLM Provider
+    LG -- "Request to LLM" --> ExternalLLM;
+    ExternalLLM -- "Response from LLM" --> LG;
+
+    %% Backend API <-> Data Storage (for user/conv data)
+    BackendAPI -- "DB Ops" --> DS;
+    DS -- "Data" --> BackendAPI;
+
+    %% Final response path from Supervisor LangGraph
+    FinalizeResponse -- "Final Response" --> BackendAPI;
+
+
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;

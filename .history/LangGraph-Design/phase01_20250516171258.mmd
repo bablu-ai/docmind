@@ -1,0 +1,69 @@
+%% title: Phase 1 Architecture Diagram: Basic Setup (Corrected)
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font; Comic Sans might not be universally available/readable
+      'fontSize': '16px',             %% Slightly larger font size
+      'primaryColor': '#ADD8E6',       %% Light Blue (e.g., for UI)
+      'secondaryColor': '#90EE90',      %% Light Green (e.g., for Backend)
+      'tertiaryColor': '#FFFF99',       %% Light Yellow (e.g., for External)
+      'quaternaryColor': '#FFB6C1',     %% Light Red/Pink (e.g., for Database)
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333',       %% Dark text for readability
+      'clusterBorder': '#BBB',          %% Lighter border for subgraphs
+      'clusterBkg': '#F9F9F9'           %% Light background for subgraphs
+    },
+     'flowchart': {
+       'curve': 'basis' %% Use 'basis' or 'linear' for curved lines - also controlled by linkStyle
+    },
+     'look': 'handDrawn' %% Request hand-drawn look - support is renderer-dependent
+  }
+}%%
+flowchart TD
+
+    %% Define Custom Styles using theme variables or specific colors
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;       %% Light Blue
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;   %% Light Green
+    classDef llmStyle fill:#FFFF99,stroke:#333,stroke-width:2px;       %% Light Yellow (matching theme tertiary)
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;        %% Light Red/Pink (e.g., for Database)
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px; %% Light Yellow (matching theme tertiary)
+
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+    subgraph FE[Frontend]
+        direction LR
+        UI[User Interface-UI]:::uiStyle
+    end
+
+    subgraph BS[Backend Services]
+        direction TD %% Arrange components top-down within Backend
+        BackendAPI[Backend API (Python)]:::backendStyle
+        subgraph LG[LLM Gateway]
+            direction TD
+            LiteLLMGateway{{LiteLLM}}:::llmStyle %% Iconic shape for gateway
+        end
+        subgraph DS[Data Storage]
+             direction TD
+             MongoDB[/MongoDB Database\]:::dbStyle      %% Iconic representation for Database
+        end
+    end
+
+    subgraph ED[External Dependencies]
+        direction TD
+        ExternalLLM[(External LLM Provider)]:::externalStyle %% Iconic shape for external service
+    end
+
+
+    %% Define Flow (Edges)
+    UI -- "User Query" --> BackendAPI;
+    BackendAPI -- "Forwards Query" --> LG;
+    LG -- "Request to LLM" --> ED;
+    ED -- "Returns Response" --> LG;
+    LG -- "Forwards Response" --> BackendAPI;
+    BackendAPI -- "Generates/Sends Response" --> UI;
+    BackendAPI -- "Stores/Retrieves Basic Data" --> DS;
+
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;

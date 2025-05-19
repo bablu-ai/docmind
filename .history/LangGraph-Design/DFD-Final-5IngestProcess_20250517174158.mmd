@@ -1,0 +1,87 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'processColor': '#FFFACD',      /* lemonchiffon - for P4.0 sub-processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'externalProcessColor': '#E0FFFF', /* Light cyan for other Level 1 processes */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect;
+
+    %% External Processes & Data Stores (Sources/Sinks for P4.0)
+    P2_Orchestrate_Response["P2.0 Orchestrate Response<br/>(Agent LangGraph Core)"]:::externalProcess;
+    VectorDB_RAG_Episodic["DS3: Knowledge Base &<br/>Episodic Traces (Vector DB)"]:::dataStore;
+    Mongo_LTM_Metadata["DS2: LTM & Document<br/>Metadata (MongoDB)"]:::dataStore;
+    P7_Record_System_Traces["P7.0 Record System Traces"]:::externalProcess;
+
+    %% Sub-Processes within P4.0 Retrieve & Augment Content (RAG Pipeline)
+    subgraph P4_Process ["Process 4.0: Retrieve & Augment Content (RAG Pipeline)"]
+        direction TB
+        P4_1_Receive_RAG_Request["4.1 Receive RAG Request<br/>(Query, Context)"]:::process;
+        P4_2_Select_RAG_Mode["4.2 Select RAG Mode<br/>(Dynamic: Mix, Global, Local, Naive)"]:::process;
+        P4_3_Perform_Graph_Entity_Search["4.3 Perform Graph-Based<br/>Entity Search (Optional)"]:::process;
+        P4_4_Execute_Vector_Retrieval["4.4 Execute Vector Store<br/>Retrieval"]:::process;
+        P4_5_Fetch_Document_Metadata["4.5 Fetch Relevant<br/>Document Metadata"]:::process;
+        P4_6_Rerank_Retrieved_Content["4.6 Rerank Retrieved<br/>Content"]:::process;
+        P4_7_Synthesize_Augmented_Context["4.7 Synthesize Augmented<br/>Context (LLM)"]:::process;
+        P4_8_Log_RAG_Pipeline_Trace["4.8 Log RAG Pipeline<br/>Trace"]:::process;
+    end
+
+    %% Data Flows for P4.0
+
+    %% Receiving RAG Request
+    P2_Orchestrate_Response -- "Content Retrieval Request<br/>(Query + Context)" --> P4_1_Receive_RAG_Request;
+    P4_1_Receive_RAG_Request -- "Parsed RAG Query & Context" --> P4_2_Select_RAG_Mode;
+    
+    %% RAG Mode Selection and Initial Search (Graph/Entity)
+    P4_2_Select_RAG_Mode -- "Query & Selected RAG Mode" --> P4_3_Perform_Graph_Entity_Search;
+    %% Assuming graph data might be in/linked from VectorDB or a dedicated graph store
+    P4_3_Perform_Graph_Entity_Search -- "Entity Search Query / Parameters" --> VectorDB_RAG_Episodic; 
+    VectorDB_RAG_Episodic -- "Entity Search Results / Candidate Docs" --> P4_3_Perform_Graph_Entity_Search;
+    P4_3_Perform_Graph_Entity_Search -- "Refined Query / Candidate Doc IDs" --> P4_4_Execute_Vector_Retrieval;
+    %% Direct to vector if no graph search
+    P4_2_Select_RAG_Mode -- "Query & Selected RAG Mode (No Graph Search)" --> P4_4_Execute_Vector_Retrieval; 
+
+    %% Vector Retrieval and Metadata Fetching
+    P4_4_Execute_Vector_Retrieval -- "Vector Search Query / Embeddings" --> VectorDB_RAG_Episodic;
+    VectorDB_RAG_Episodic -- "Retrieved Raw Document Chunks" --> P4_4_Execute_Vector_Retrieval;
+    P4_4_Execute_Vector_Retrieval -- "Retrieved Chunk IDs / Content" --> P4_5_Fetch_Document_Metadata;
+    %% Also send to reranker
+    P4_4_Execute_Vector_Retrieval -- "Retrieved Chunk IDs / Content" --> P4_6_Rerank_Retrieved_Content; 
+
+    P4_5_Fetch_Document_Metadata -- "Request for Document Metadata (using Chunk IDs)" --> Mongo_LTM_Metadata;
+    Mongo_LTM_Metadata -- "Relevant Document Metadata" --> P4_5_Fetch_Document_Metadata;
+    P4_5_Fetch_Document_Metadata -- "Chunks with Metadata" --> P4_6_Rerank_Retrieved_Content;
+
+    %% Reranking and Synthesizing
+    P4_6_Rerank_Retrieved_Content -- "Reranked & Filtered Content (Chunks + Metadata)" --> P4_7_Synthesize_Augmented_Context;
+    P4_7_Synthesize_Augmented_Context -- "Augmented Content<br/>(for Agent Core)" --> P2_Orchestrate_Response;
+    
+    %% Logging Traces
+    P4_1_Receive_RAG_Request -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_2_Select_RAG_Mode -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_3_Perform_Graph_Entity_Search -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_4_Execute_Vector_Retrieval -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_5_Fetch_Document_Metadata -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_6_Rerank_Retrieved_Content -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_7_Synthesize_Augmented_Context -- "Trace Data" --> P4_8_Log_RAG_Pipeline_Trace;
+    P4_8_Log_RAG_Pipeline_Trace -- "RAG Pipeline Traces" --> P7_Record_System_Traces;
+
+    %% title Level 2 DFD for P4.0: Retrieve & Augment Content (RAG Pipeline)

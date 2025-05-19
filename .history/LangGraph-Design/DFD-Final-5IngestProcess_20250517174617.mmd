@@ -1,0 +1,90 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'processColor': '#FFFACD',      /* lemonchiffon - for P5.0 sub-processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities (WebSources) */
+      'externalProcessColor': '#E0FFFF', /* Light cyan for other Level 1 processes */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect;
+
+    %% External Processes, Entities & Data Stores (Sources/Sinks for P5.0)
+    P1_UI_Interaction["P1.0 Manage User Inputs<br/>& Display Outputs"]:::externalProcess;
+    WebSources["Web Sources<br/>(for Scraping)"]:::entity;
+    %% Target for KB content
+    VectorDB_RAG_Episodic["DS3: Knowledge Base &<br/>Episodic Traces (Vector DB)"]:::dataStore; 
+    %% Target for document metadata
+    Mongo_LTM_Metadata["DS2: LTM & Document<br/>Metadata (MongoDB)"]:::dataStore; 
+    %% P7_Record_System_Traces removed as per user feedback for this specific L2 DFD
+
+    %% Sub-Processes within P5.0 Ingest & Process Knowledge Sources
+    subgraph P5_Process ["Process 5.0: Ingest & Process Knowledge Sources"]
+        direction TB
+        P5_1_Receive_Ingestion_Input["5.1 Receive Ingestion Input<br/>(File/URL, Metadata from P1 or Trigger)"]:::process;
+        P5_2_Fetch_Web_Content["5.2 Fetch Web Content<br/>(If URL provided)"]:::process;
+        P5_3_Extract_Text_Content["5.3 Extract Text Content<br/>(from File/Web Page - LightRAG Processor)"]:::process;
+        P5_4_Chunk_Content["5.4 Chunk Extracted Content<br/>(LightRAG Processor)"]:::process;
+        P5_5_Generate_Embeddings["5.5 Generate Embeddings<br/>for Chunks (LightRAG/Embedding Model)"]:::process;
+        P5_6_Store_Content_Embeddings["5.6 Store Content Chunks<br/>& Embeddings in Vector DB"]:::process;
+        P5_7_Store_Document_Metadata["5.7 Store Document Source<br/>& Extracted Metadata"]:::process;
+        P5_8_Report_Ingestion_Status["5.8 Report Ingestion<br/>Status"]:::process;
+        %% P5_9_Log_Ingestion_Trace removed
+    end
+
+    %% Data Flows for P5.0
+
+    %% Receiving Ingestion Input
+    P1_UI_Interaction -- "Raw Document File/URL for Ingestion, User Metadata" --> P5_1_Receive_Ingestion_Input;
+    
+    P5_1_Receive_Ingestion_Input -- "URL for Scraping" --> P5_2_Fetch_Web_Content;
+    P5_1_Receive_Ingestion_Input -- "Document File Data" --> P5_3_Extract_Text_Content;
+    P5_1_Receive_Ingestion_Input -- "Initial User-Provided Metadata" --> P5_7_Store_Document_Metadata;
+
+    %% Fetching and Extracting Content
+    P5_2_Fetch_Web_Content -- "Web Scrape Request" --> WebSources;
+    WebSources -- "Raw Web Content" --> P5_2_Fetch_Web_Content;
+    P5_2_Fetch_Web_Content -- "Fetched Web Page Content" --> P5_3_Extract_Text_Content;
+    
+    P5_3_Extract_Text_Content -- "Extracted Plain Text" --> P5_4_Chunk_Content;
+    P5_3_Extract_Text_Content -- "Potentially Extracted Metadata (e.g., title)" --> P5_7_Store_Document_Metadata;
+
+    %% Chunking and Embedding
+    P5_4_Chunk_Content -- "Text Chunks" --> P5_5_Generate_Embeddings;
+    P5_5_Generate_Embeddings -- "Text Chunks with Embeddings" --> P5_6_Store_Content_Embeddings;
+
+    %% Storing Data
+    P5_6_Store_Content_Embeddings -- "Content Chunks & Embeddings for Storage" --> VectorDB_RAG_Episodic; 
+    VectorDB_RAG_Episodic -- "Storage Confirmation/IDs" --> P5_6_Store_Content_Embeddings;
+    
+    P5_7_Store_Document_Metadata -- "Document Source & Combined Metadata" --> Mongo_LTM_Metadata; 
+    Mongo_LTM_Metadata -- "Storage Confirmation" --> P5_7_Store_Document_Metadata;
+
+    %% Reporting Status
+    P5_6_Store_Content_Embeddings -- "Ingestion Success/Failure Info" --> P5_8_Report_Ingestion_Status;
+    P5_7_Store_Document_Metadata -- "Metadata Storage Success/Failure Info" --> P5_8_Report_Ingestion_Status;
+    P5_8_Report_Ingestion_Status -- "Overall Ingestion Status" --> P1_UI_Interaction; 
+
+    %% Logging Traces - All flows to P5_9 and P5_9 itself are removed.
+    %% P7_Record_System_Traces is also removed from this diagram's scope.
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    linkStyle default interpolate basis;
+    %% title Level 2 DFD for P5.0: Ingest & Process Knowledge Sources (No Tracing Shown)

@@ -1,0 +1,36 @@
+{
+  "MoneyMarket":[
+    {
+      "Website URL": "https://www.sec.gov/Archives/edgar/data/72971/000183988225024162/0001839882-25-024162.txt",
+      "Page Title": "Securities and Exchange Commission Filling Wells Fargo",
+      "Description": "Rules and Regulations for the Securities and Exchange Commission and Major Securities Laws.",
+      "Category": "Regulations",
+      "Keywords": "'SEC', 'Securities', 'Exchange Commission', ' Regulations', 'Major Securities', 'Laws', 'Regulation', 'Stock Market'",
+      "Language": "English"
+    },
+    {
+      "Website URL": "https://www.sec.gov/Archives/edgar/data/882381/000110465925039514/0001104659-25-039514.txt",
+      "Page Title": "MORGAN STANLEY GLOBAL FIXED INCOME OPPORTUNITIES FUND",
+      "Description": "Eaton Vance Strategic Income Opportunities ETF",
+      "Category": "Education",
+      "Keywords": "'MGFOX', 'Finance', 'Stock Market', 'Economics', 'Financial Terms'",
+      "Language": "English"
+    },
+    {
+      "Website URL": "https://en.wikipedia.org/wiki/Kubernetes",
+      "Page Title": "Kubernetes",
+      "Description": " K8s is an open-source container orchestration system for automating software deployment, scaling, and management",
+      "Category": "Technology",
+      "Keywords":"'K8s','Kubernetes','deployment','scalable'",
+      "Language": "English"
+     },
+      {
+         "Website URL": "https://corporatefinanceinstitute.com/resources/valuation/the-sp-sectors/",
+        "Page Title": "The S&P Sectors - Overview and Description of the 11 Sectors",
+         "Description": "Corporate Finance Institute provides an overview of the different sectors within the S&P.",
+         "Category": "Market Analysis",
+        "Keywords": "'S&P Sectors', 'Market Analysis', 'Industry Overview', 'Large-Cap', 'Small-Cap', 'Oil Sector', 'Retail Sector', 'Banking Sector', 'Bonds', 'Stocks', 'Treasures'",
+        "Language": "English"
+      }
+  ]
+}

@@ -1,0 +1,45 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       /* древний пергамент (для фона графа) */
+      'nodeBorder': '#8B4513',        /* седельно-коричневый (для границ узлов) */
+      'lineColor': '#A0522D',         /* охра (для линий) */
+      'primaryTextColor': '#5C4033',  /* темно-коричневый (для текста) */
+      'secondaryColor': '#DEB887',    /* светло-коричневый (для узлов инструментов) */
+      'tertiaryColor': '#F5DEB3',     /* пшеничный (для узлов обработки) */
+      'edgeLabelBackground':'#FFFFE0', /* светло-желтый (для меток ребер) */
+      'clusterBkg': '#FFFFE0'       /* светло-желтый (для фона кластеров) */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef langGraphCore fill:#FFFACD,stroke:#8B4513,stroke-width:2px;
+    classDef logicNode fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef memoryNode fill:#E6E6FA,stroke:#8B4513,stroke-width:2px,shape:cylinder;
+
+
+    A[Start: Receive Final Context]:::langGraphCore
+    B["Final Response Refiner Node (LLM)"]:::logicNode
+    C[Generate Final Response]:::logicNode
+    D[End: Deliver Response]:::langGraphCore
+    STM[Short-Term Memory]:::memoryNode
+    LTM[Long-Term Memory]:::memoryNode
+
+    A --> B;
+    B -- "Synthesized Context & Relevant Memories" --> B;
+    B --> C;
+    C --> D;
+    B -.-> STM;
+    B -.-> LTM;
+
+    class A,D langGraphCore;
+    class B,C logicNode;
+    class STM,LTM memoryNode;
+    title Phase 7 Architecture: Implement 'Final Response Refiner' Node

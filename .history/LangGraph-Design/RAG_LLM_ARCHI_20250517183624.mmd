@@ -1,0 +1,113 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '13px',
+      'primaryColor': '#F5F5DC',        /* beige - main background/default */
+      'nodeBorder': '#A0522D',         /* sienna - component borders */
+      'lineColor': '#8B4513',          /* saddlebrown - connection lines */
+      'primaryTextColor': '#5C4033',   /* dark brown */
+      'componentBg': '#FFFACD',        /* lemonchiffon - for RAG/LLM components */
+      'libColor': '#D8BFD8',           /* thistle - for libraries/frameworks */
+      'dbColor': '#FFB6C1',            /* lightpink - for databases */
+      'externalColor': '#90EE90',      /* lightgreen - for external LLM services */
+      'edgeLabelBackground':'#F5F5F5', /* very light grey for edge labels */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef component fill:#FFFACD,stroke:#A0522D,stroke-width:2px;
+    classDef library fill:#D8BFD8,stroke:#A0522D,stroke-width:1.5px;
+    classDef database fill:#FFB6C1,stroke:#A0522D,stroke-width:2px,shape:cylinder;
+    classDef external fill:#90EE90,stroke:#A0522D,stroke-width:2px,shape:rectangle;
+    classDef flowLabel fill:none,stroke:none,text-align:center;
+
+    %% Core Agent & Orchestration
+    Agent_LangGraph_Core["Main Agent LangGraph Core"]:::library;
+    
+    subgraph RAG_Pipeline ["RAG Pipeline (LightRAG based)"]
+        direction TB
+        RAG_Coordinator["RAG Coordinator Node<br/>(within Agent LangGraph)"]:::component;
+        Dynamic_Mode_Selector["Dynamic RAG Mode Selector<br/>(LLM-assisted or Rule-based)"]:::component;
+        Graph_Entity_Searcher["Graph-Based Entity Searcher<br/>(LightRAG module)"]:::component;
+        Vector_Retriever["Vector Retriever<br/>(LangChain Retriever for VectorDB)"]:::component;
+        Metadata_Fetcher["Document Metadata Fetcher"]:::component;
+        Reranker["Content Reranker Module"]:::component;
+        RAG_Context_Synthesizer["RAG Context Synthesizer<br/>(LLM-based)"]:::component;
+
+        RAG_Coordinator --> Dynamic_Mode_Selector;
+        Dynamic_Mode_Selector -- "Selected Mode & Query" --> Graph_Entity_Searcher;
+    %% Can go direct or after graph search
+        Dynamic_Mode_Selector -- "Selected Mode & Query" --> Vector_Retriever; 
+    %% Graph search can refine input for vector retrieval
+        Graph_Entity_Searcher --> Vector_Retriever; 
+        Vector_Retriever --> Metadata_Fetcher;
+        Metadata_Fetcher --> Reranker;
+        Reranker --> RAG_Context_Synthesizer;
+    end
+
+    %% LLM Interaction Layer
+    subgraph LLM_Interaction_Layer ["LLM Interaction Layer"]
+        direction TB
+        LiteLLM_Interface["LiteLLM Interface Module"]:::library;
+        
+        LLM_For_Routing["LLM for Query Routing<br/>(via Query Parser/Router Node)"]:::component;
+        LLM_For_Tool_Use["LLM for Tool Reasoning<br/>(ReAct Pattern within Tool Nodes)"]:::component;
+        LLM_For_RAG_Synthesis["LLM for RAG Context Synthesis<br/>(Part of RAG_Context_Synthesizer)"]:::component;
+        LLM_For_Response_Generation["LLM for Final Response Generation<br/>(Response Synthesizer & Refiner Nodes)"]:::component;
+        LLM_For_LTM_Analysis["LLM for LTM Background Analysis<br/>(within LTM Updater LangGraph)"]:::component;
+        LLM_For_Embeddings["LLM/Model for Embeddings<br/>(Embedding Generator Module)"]:::component;
+
+        LiteLLM_Interface -.-> LLM_For_Routing;
+        LiteLLM_Interface -.-> LLM_For_Tool_Use;
+        LiteLLM_Interface -.-> LLM_For_RAG_Synthesis;
+        LiteLLM_Interface -.-> LLM_For_Response_Generation;
+        LiteLLM_Interface -.-> LLM_For_LTM_Analysis;
+        LiteLLM_Interface -.-> LLM_For_Embeddings;
+    end
+
+    %% Data Stores relevant to RAG/LLM
+    VectorDB_Store["Vector Database<br/>(RAG Docs, Episodic Traces)"]:::database;
+    MongoDB_Metadata_LTM["MongoDB<br/>(Doc Metadata, LTM)"]:::database;
+    
+    %% External LLM Providers
+    External_LLMs["External LLM Providers<br/>(Gemini, OpenAI, Anthropic, etc.)"]:::external;
+
+    %% Connections: Agent Core to RAG and LLM Interface
+    Agent_LangGraph_Core -- "Triggers RAG Request" --> RAG_Coordinator;
+    RAG_Context_Synthesizer -- "Synthesized Augmented Context" --> Agent_LangGraph_Core;
+
+    Agent_LangGraph_Core -- "Requests LLM Task (Routing, Synthesis, Tool Use)" --> LiteLLM_Interface;
+    LTM_Background_Updater_Placeholder["LTM Background Updater LangGraph"] -- "Requests LLM Task (Analysis)" --> LiteLLM_Interface;
+    Embedding_Generator_Placeholder["Embedding Generator (Data Ingestion)"] -- "Requests Embedding Model" --> LiteLLM_Interface;
+
+
+    %% Connections: RAG Pipeline to Data Stores
+    %% Or a dedicated Graph DB if separate
+    Graph_Entity_Searcher -- "Accesses Graph Data" --> VectorDB_Store; 
+    Vector_Retriever -- "Retrieves Embeddings & Chunks" --> VectorDB_Store;
+    Metadata_Fetcher -- "Retrieves Metadata" --> MongoDB_Metadata_LTM;
+
+    %% Connections: LLM Interface to External LLMs
+    LLM_For_Routing -- "LLM Call" --> External_LLMs;
+    LLM_For_Tool_Use -- "LLM Call" --> External_LLMs;
+    LLM_For_RAG_Synthesis -- "LLM Call" --> External_LLMs;
+    LLM_For_Response_Generation -- "LLM Call" --> External_LLMs;
+    LLM_For_LTM_Analysis -- "LLM Call" --> External_LLMs;
+    %% Or local if self-hosted embedding models
+    LLM_For_Embeddings -- "Embedding Model Call" --> External_LLMs; 
+
+    %% Placeholder styling for clarity
+    class LTM_Background_Updater_Placeholder,Embedding_Generator_Placeholder component;
+
+    
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    linkStyle default interpolate basis;
+
+    %% title RAG/LLM-Specific Architecture Diagram

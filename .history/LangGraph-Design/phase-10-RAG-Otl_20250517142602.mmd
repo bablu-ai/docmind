@@ -1,0 +1,106 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       /* ancient parchment (for graph background) */
+      'nodeBorder': '#8B4513',        /* saddle brown (for node borders) */
+      'lineColor': '#A0522D',         /* sienna (for lines) */
+      'primaryTextColor': '#5C4033',  /* dark brown (for text) */
+      'graphColor': '#F5DEB3',        /* wheat (for LangGraph/RAG components) */
+      'observabilityColor': '#D8BFD8', /* thistle (for observability components) */
+      'ingestionColor': '#FFE4C4',     /* bisque (for ingestion components) */
+      'dbColor': '#FFB6C1',           /* light pink (for DB) */
+      'vectorDBColor': '#B0E0E6',     /* powder blue (for Vector DB) */
+      'apiColor': '#90EE90',          /* light green (for API endpoints) */
+      'uiColor': '#ADD8E6',           /* light blue (for UI) */
+      'edgeLabelBackground':'#FFFFE0', /* light yellow (for edge labels background) */
+      'clusterBkg': '#FFFFE0'       /* light yellow (for cluster background) */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef mainGraph fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    
+
+    classDef advancedRAGNode fill:#F0E68C,stroke:#8B4513,stroke-width:1px; 
+    classDef observabilityComp fill:#D8BFD8,stroke:#483D8B,stroke-width:2px;
+    classDef ingestionComp fill:#FFE4C4,stroke:#8B4513,stroke-width:2px;
+    classDef ingestionUI fill:#ADD8E6,stroke:#5A9FB8,stroke-width:1px;
+    classDef dbStore fill:#FFB6C1,stroke:#A52A2A,stroke-width:2px,shape:cylinder;
+    classDef vectorStore fill:#B0E0E6,stroke:#6495ED,stroke-width:2px,shape:cylinder;
+    classDef apiEndpoint fill:#C1E1C1,stroke:#38761D,stroke-width:1px;
+    classDef backendApiLayer fill:#90EE90,stroke:#38761D,stroke-width:2px;
+
+
+    subgraph Observability_Platform ["Observability Platform"]
+        direction LR
+        OtelCollector["OpenTelemetry Collector"]:::observabilityComp;
+        TracingBackend["Tracing Backend<br/>(Jaeger / Phoenix)"]:::observabilityComp;
+        OtelCollector -- Exports Traces --> TracingBackend;
+    end
+
+    subgraph Main_System ["Main Agent & API System"]
+        direction TB
+        BackendAPIs["Backend APIs<br/>(Chat, History, Models, Preferences)"]:::backendApiLayer;
+        MainAgentLangGraph["Main Agent LangGraph"]:::mainGraph;
+        
+        subgraph Advanced_RAG_Processing [ภายใน MainAgentLangGraph - "Advanced RAG Processing Subgraph"]
+            direction TB
+            RAG_QueryInput[RAG Query Input] --> DynamicModeSelection;
+            DynamicModeSelection{"Dynamic RAG Mode Selection<br/>(Mix, Global, Local, Naive)"}:::advancedRAGNode;
+            DynamicModeSelection -- Mode Selected --> GraphEntitySearch;
+            GraphEntitySearch["Graph-Based Entity Search Node<br/>(LightRAG)"]:::advancedRAGNode;
+            GraphEntitySearch --> VectorRetrieval[Vector Store Retrieval];
+            VectorRetrieval --> RerankNode[Rerank Results];
+            RerankNode --> RAG_Output[Synthesized RAG Output];
+        end
+
+        MainAgentLangGraph -- Includes --> Advanced_RAG_Processing;
+        BackendAPIs -- Invokes --> MainAgentLangGraph;
+        
+        %% Tracing points
+        BackendAPIs -- Sends Traces --> OtelCollector;
+        MainAgentLangGraph -- Sends Traces --> OtelCollector;
+        Advanced_RAG_Processing -- Sends Traces --> OtelCollector;
+    end
+    
+    subgraph Document_Ingestion_Pipeline ["Document Ingestion Pipeline"]
+        direction TB
+        IngestionUI["Document Upload UI<br/>(Upload PDF/TXT, Add Metadata)"]:::ingestionUI;
+        WebScrapingTrigger["Web Scraping Trigger<br/>(e.g., API call, Scheduled Job)"]:::ingestionComp;
+        
+        LightRAG_DocProcessor["LightRAG Document Processor"]:::ingestionComp;
+        
+        IngestionUI -- File & Metadata --> LightRAG_DocProcessor;
+        WebScrapingTrigger -- URL & Config --> LightRAG_DocProcessor;
+        
+        LightRAG_DocProcessor -- Processed Chunks & Embeddings --> VectorDB_KnowledgeBase;
+        LightRAG_DocProcessor -- Extracted Metadata --> MongoDB_Metadata;
+    end
+
+    subgraph Knowledge_Bases ["Knowledge Bases"]
+        direction LR
+        VectorDB_KnowledgeBase["Vector Database<br/>(RAG Source Documents, Embeddings)"]:::vectorStore;
+        MongoDB_Metadata["MongoDB<br/>(Document Metadata, Sources)"]:::dbStore;
+    end
+    
+    %% Connections between major components
+    Advanced_RAG_Processing -- Reads from --> VectorDB_KnowledgeBase;
+    Advanced_RAG_Processing -- Reads Metadata from --> MongoDB_Metadata;
+
+
+    %% Styling Subgraphs by ID
+    class Observability_Platform observabilityComp;
+    class Main_System mainGraph;
+    class Document_Ingestion_Pipeline ingestionComp;
+    class Knowledge_Bases dbStore;
+    class Advanced_RAG_Processing mainGraph;
+
+
+    %% title Phase 10 Architecture: Observability & LightRAG Advanced Features

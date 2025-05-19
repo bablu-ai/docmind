@@ -1,0 +1,45 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       /* ancient parchment (for graph background) */
+      'nodeBorder': '#8B4513',        /* saddle brown (for node borders) */
+      'lineColor': '#A0522D',         /* sienna (for lines) */
+      'primaryTextColor': '#5C4033',  /* dark brown (for text) */
+      'secondaryColor': '#DEB887',    /* burlywood (for tool nodes) */
+      'tertiaryColor': '#F5DEB3',     /* wheat (for processing nodes) */
+      'edgeLabelBackground':'#FFFFE0', /* light yellow (for edge labels background) */
+      'clusterBkg': '#FFFFE0'       /* light yellow (for cluster background) */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef langGraphCore fill:#FFFACD,stroke:#8B4513,stroke-width:2px;
+    classDef logicNode fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef memoryNode fill:#E6E6FA,stroke:#8B4513,stroke-width:2px,shape:cylinder;
+
+
+    A[Start: Receive Final Synthesized Context]:::langGraphCore
+    B["Final Response Refiner Node (LLM)"]:::logicNode
+    C[Generate Polished Final Response]:::logicNode
+    D[End: Deliver Response to User]:::langGraphCore
+    STMread[Read STM]:::memoryNode
+    LTMread[Read LTM]:::memoryNode
+
+    A --> B;
+    STMread -.-> B;
+    LTMread -.-> B;
+    B -- "Uses Synthesized Context & Memories" --> C;
+    C --> D;
+
+    class A,D langGraphCore;
+    class B,C logicNode;
+    class STMread,LTMread memoryNode;
+
+    %% title Phase 7 Architecture: Implement 'Final Response Refiner' Node

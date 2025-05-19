@@ -1,0 +1,6 @@
+.history/.idea/*
+.history/design/*
+.history/design/Editor*
+.history/
+.idea/*
+.venv/*

@@ -1,0 +1,60 @@
+---
+config:
+  layout: 
+  look: classic
+---
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities */
+      'processColor': '#FFFACD',      /* lemonchiffon - for the main process */
+      'edgeLabelBackground':'#F0F8FF',/* aliceblue - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:ellipse;
+
+    %% External Entities
+    User["User"]:::entity;
+    Admin["Admin/Content Curator"]:::entity;
+    External_Info_APIs["External Information APIs<br/>(Stock, Weather, etc.)"]:::entity;
+    Web_Sources["Web Sources<br/>(for scraping)"]:::entity;
+
+    %% Main System Process
+    System["Agentic RAG Chatbot System"]:::process;
+
+    %% Data Flows
+    User -- "User Query" --> System;
+    User -- "Preferences Data" --> System;
+    User -- "LLM Selection" --> System;
+    System -- "Chat Response" --> User;
+    System -- "UI Data (History, Models)" --> User;
+
+    Admin -- "Document Uploads" --> System;
+    Admin -- "Metadata Input" --> System;
+    Admin -- "System Configuration Input" --> System;
+    System -- "Processing Status" --> Admin;
+
+    System -- "REST API Request" --> External_Info_APIs;
+    External_Info_APIs -- "API Data (Stock Data, Weather Data, etc.)" --> System;
+
+    System -- "Scraping Request (URL)" --> Web_Sources;
+    Web_Sources -- "Scraped Web Content" --> System;
+
+    %% Apply curved lines using 'basis' interpolation
+    linkStyle default interpolate basis;
+    %% title Level 0 Data Flow Diagram (Context Diagram)

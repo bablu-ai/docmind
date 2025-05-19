@@ -1,0 +1,60 @@
+---
+config:
+  layout: elk
+  look: classic
+  theme: base
+  themeVariables:
+    fontFamily: ''
+    fontSize: 14px
+    lineColor: '#000000'
+---
+
+graph RL
+
+    %% Define Custom Styles using theme variables or specific colors
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;       %% Light Blue
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;   %% Light Green
+    classDef llmStyle fill:#FFFF99,stroke:#333,stroke-width:2px;      
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px; 
+
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+    
+    subgraph BS[Backend Services]
+        direction TB;
+        BackendAPI[Backend API - Python]:::backendStyle
+        subgraph LG[LLM Gateway]
+            direction TB;
+            LiteLLMGateway{{LiteLLM}}:::llmStyle
+        end
+        subgraph DS[Data Storage]
+             direction TB;
+             MongoDB[(MongoDB Database)]:::dbStyle
+        end
+    end
+
+
+
+    subgraph ED[External Dependencies]
+        direction TB;
+        ExternalLLM[(External LLM Provider)]:::externalStyle 
+    end
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface-UI]:::uiStyle
+    end
+
+
+    %% Define Flow (Edges)
+    UI -- "User Query" --> BackendAPI;
+    BackendAPI -- "Forwards Query" --> LG;
+    LG -- "Request to LLM" --> ED;
+    ED -- "Returns Response" --> LG;
+    LG -- "Forwards Response" --> BackendAPI;
+    BackendAPI -- "Generates/Sends Response" --> UI;
+    BackendAPI -- "Stores/Retrieves Basic Data" --> DS;
+
+    %% Apply curved lines using 'basis' interpolation
+    %% linkStyle default interpolate basis;
+    %% title: Phase 1 Architecture Diagram: Basic Setup (Corrected)

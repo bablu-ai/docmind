@@ -1,0 +1,38 @@
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: base
+  themeVariables:
+    fontFamily: ''
+    fontSize: 14px
+    lineColor: '#000000'
+---
+
+graph TD
+    classDef langGraphCore fill:#FFFACD,stroke:#8B4513,stroke-width:2px;
+    classDef logicNode fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef memoryNode fill:#E6E6FA,stroke:#8B4513,stroke-width:2px,shape:cylinder;
+
+
+    A[<b>Start</b>: Receive Final Synthesized Context]:::langGraphCore
+    B["Final Response Refiner Node (LLM)"]:::logicNode
+    C[Generate Polished Final Response]:::logicNode
+    D[<b>End<: Deliver Response to User]:::langGraphCore
+    STMread[Read STM]:::memoryNode
+    LTMread[Read LTM]:::memoryNode
+
+    A --> B;
+    STMread -.-> B;
+    LTMread -.-> B;
+    B -- "Uses Synthesized Context & Memories" --> C;
+    C --> D;
+
+    class A,D langGraphCore;
+    class B,C logicNode;
+    class STMread,LTMread memoryNode;
+
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    %% linkStyle default interpolate basis;
+    
+    %% title Phase 7 Architecture: Implement 'Final Response Refiner' Node

@@ -1,0 +1,62 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'processColor': '#FFFACD',      /* lemonchiffon - for P7.0 sub-processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores (Observability Log) */
+      'externalProcessColor': '#E0FFFF', /* Light cyan for other Level 1 processes (P1, P2, P3, P4, P6) */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect;
+
+    %% External Processes (Sources for P7.0, as per revised Level 1 DFD)
+    P1_Handle_User_Input["P1.0 Manage User Inputs<br/>& Display Outputs"]:::externalProcess;
+    P2_Orchestrate_Response["P2.0 Orchestrate Response<br/>(Agent LangGraph Core)"]:::externalProcess;
+    P3_Execute_Tools["P3.0 Execute External Tools"]:::externalProcess;
+    P4_Retrieve_Augment_Content["P4.0 Retrieve & Augment<br/>Content (RAG Pipeline)"]:::externalProcess;
+    P6_Learn_From_History["P6.0 Learn From History<br/>(LTM Updater - Background)"]:::externalProcess;
+    %% P5.0 is intentionally omitted as a source of traces based on previous user feedback.
+
+    %% Data Store (Sink for P7.0)
+    ObservabilityLog["DS5: Observability Log<br/>(Tracing Backend - e.g., Jaeger, Phoenix)"]:::dataStore;
+
+    %% Sub-Processes within P7.0 Record System Traces
+    subgraph P7_Process ["Process 7.0: Record System Traces"]
+        direction TB
+        P7_1_Receive_Process_Traces["7.1 Receive Trace Data<br/>(from System Processes)"]:::process;
+        P7_2_Aggregate_Format_Traces["7.2 Aggregate & Format Traces<br/>(OpenTelemetry Collector Logic)"]:::process;
+        P7_3_Export_Traces_To_Backend["7.3 Export Formatted Traces<br/>to Tracing Backend"]:::process;
+    end
+
+    %% Data Flows for P7.0
+
+    %% Receiving Trace Data from various Level 1 Processes
+    P1_Handle_User_Input -- "Operational Traces" --> P7_1_Receive_Process_Traces;
+    P2_Orchestrate_Response -- "Execution Traces" --> P7_1_Receive_Process_Traces;
+    P3_Execute_Tools -- "Tool Call Traces" --> P7_1_Receive_Process_Traces;
+    P4_Retrieve_Augment_Content -- "RAG Pipeline Traces" --> P7_1_Receive_Process_Traces;
+    P6_Learn_From_History -- "Background Process Traces" --> P7_1_Receive_Process_Traces;
+    
+    P7_1_Receive_Process_Traces -- "Collected Raw Trace Data" --> P7_2_Aggregate_Format_Traces;
+    
+    %% Aggregating, Formatting, and Exporting Traces
+    P7_2_Aggregate_Format_Traces -- "Formatted & Aggregated Trace Data" --> P7_3_Export_Traces_To_Backend;
+    P7_3_Export_Traces_To_Backend -- "Exported Traces" --> ObservabilityLog;
+
+    title Level 2 DFD for P7.0: Record System Traces

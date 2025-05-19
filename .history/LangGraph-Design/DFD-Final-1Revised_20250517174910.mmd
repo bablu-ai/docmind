@@ -1,0 +1,108 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '13px', /* Adjusted for clarity */
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities */
+      'processColor': '#FFFACD',      /* lemonchiffon - for processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background for better contrast */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+
+    %% External Entities
+    User["User"]:::entity;
+    Admin["Admin/Curator"]:::entity;
+    ExternalAPIs["External Info APIs<br/>(Stock, Weather)"]:::entity;
+    WebSources["Web Sources<br/>(for Scraping)"]:::entity;
+
+    %% Data Stores
+    Mongo_UserPrefsConv["DS1: User, Preferences &<br/>Conversation Data (MongoDB)"]:::dataStore;
+    Mongo_LTM_Metadata["DS2: LTM & Document<br/>Metadata (MongoDB)"]:::dataStore;
+    VectorDB_RAG_Episodic["DS3: Knowledge Base &<br/>Episodic Traces (Vector DB)"]:::dataStore;
+    ActiveConvCache["DS4: Active Conversation<br/>Cache (STM)"]:::dataStore;
+    ObservabilityLog["DS5: Observability Log<br/>(Tracing Backend)"]:::dataStore;
+
+    %% Level 1 Processes
+    subgraph CoreSystemProcesses ["Agentic RAG Chatbot System - Level 1 Processes"]
+        direction TB
+        P1_Handle_User_Input["1.0 Manage User Inputs<br/>& Display Outputs"]:::process;
+        P2_Orchestrate_Response["2.0 Orchestrate Response<br/>(Agent LangGraph Core)"]:::process;
+        P3_Execute_Tools["3.0 Execute External Tools"]:::process;
+        P4_Retrieve_Augment_Content["4.0 Retrieve & Augment<br/>Content (RAG Pipeline)"]:::process;
+        P5_Ingest_Knowledge["5.0 Ingest & Process<br/>Knowledge Sources"]:::process;
+        P6_Learn_From_History["6.0 Learn From History<br/>(LTM Updater - Background)"]:::process;
+        P7_Record_System_Traces["7.0 Record System Traces"]:::process;
+    end
+    
+    %% User <-> P1 (Manage User Inputs & Display Outputs)
+    User -- "User Query, UI Selections (LLM, History Action), Preferences" --> P1_Handle_User_Input;
+    P1_Handle_User_Input -- "Chat Response, Displayed History, Model List, Preference Settings" --> User;
+    P1_Handle_User_Input -- "User Details, Preference Data" --> Mongo_UserPrefsConv;
+    Mongo_UserPrefsConv -- "Stored User Details, Preferences, History List" --> P1_Handle_User_Input;
+    P1_Handle_User_Input -- "Formatted User Query" --> P2_Orchestrate_Response;
+    P2_Orchestrate_Response -- "Data for UI Response" --> P1_Handle_User_Input;
+
+    %% Admin <-> P1 & P5 (Document/Knowledge Ingestion)
+    Admin -- "Document File/URL, Metadata" --> P1_Handle_User_Input;
+    P1_Handle_User_Input -- "Raw Document/URL for Ingestion" --> P5_Ingest_Knowledge;
+    P5_Ingest_Knowledge -- "Ingestion Status" --> P1_Handle_User_Input;
+    P1_Handle_User_Input -- "Feedback to Admin" --> Admin;
+
+    %% P2 (Orchestrate Response) Interactions
+    P2_Orchestrate_Response -- "Reads/Writes" --> ActiveConvCache;
+    P2_Orchestrate_Response -- "Tool Call Request" --> P3_Execute_Tools;
+    P3_Execute_Tools -- "Tool Output Data" --> P2_Orchestrate_Response;
+    P2_Orchestrate_Response -- "Content Retrieval Request (Query + Context)" --> P4_Retrieve_Augment_Content;
+    P4_Retrieve_Augment_Content -- "Augmented Content" --> P2_Orchestrate_Response;
+    P2_Orchestrate_Response -- "Conversation Turn Log" --> Mongo_UserPrefsConv;
+    P2_Orchestrate_Response -- "Detailed Interaction Traces for Episodic Memory" --> VectorDB_RAG_Episodic;
+    P2_Orchestrate_Response -- "Query for Learned Insights" --> Mongo_LTM_Metadata;
+    Mongo_LTM_Metadata -- "LTM Data (Insights, Patterns)" --> P2_Orchestrate_Response;
+    
+    %% P3 (Execute Tools) Interactions
+    P3_Execute_Tools -- "External API Call (Stock, Weather)" --> ExternalAPIs;
+    ExternalAPIs -- "External API Response Data" --> P3_Execute_Tools;
+
+    %% P4 (Retrieve & Augment Content - RAG) Interactions
+    P4_Retrieve_Augment_Content -- "Knowledge Base Query" --> VectorDB_RAG_Episodic;
+    VectorDB_RAG_Episodic -- "Retrieved Document Chunks" --> P4_Retrieve_Augment_Content;
+    P4_Retrieve_Augment_Content -- "Request for Document Metadata" --> Mongo_LTM_Metadata;
+    Mongo_LTM_Metadata -- "Relevant Document Metadata" --> P4_Retrieve_Augment_Content;
+
+    %% P5 (Ingest Knowledge) Interactions
+    P5_Ingest_Knowledge -- "Web Scrape Request" --> WebSources;
+    WebSources -- "Raw Web Content" --> P5_Ingest_Knowledge;
+    P5_Ingest_Knowledge -- "Processed Text Chunks, Embeddings" --> VectorDB_RAG_Episodic;
+    P5_Ingest_Knowledge -- "Document Source Metadata" --> Mongo_LTM_Metadata;
+
+    %% P6 (Learn From History - LTM Updater) Interactions
+    P6_Learn_From_History -- "Reads Episodic Interaction Traces" --> VectorDB_RAG_Episodic;
+    P6_Learn_From_History -- "Reads Conversation Summaries/Logs" --> Mongo_UserPrefsConv;
+    P6_Learn_From_History -- "Writes/Updates Generalized LTM Insights" --> Mongo_LTM_Metadata;
+    
+    %% P7 (Record System Traces) Interactions with various processes
+    P1_Handle_User_Input -- "Operational Traces" --> P7_Record_System_Traces;
+    P2_Orchestrate_Response -- "Execution Traces" --> P7_Record_System_Traces;
+    P3_Execute_Tools -- "Tool Call Traces" --> P7_Record_System_Traces;
+    P4_Retrieve_Augment_Content -- "RAG Pipeline Traces" --> P7_Record_System_Traces;
+    %% P5_Ingest_Knowledge -- "Ingestion Traces" --> P7_Record_System_Traces; %% THIS LINE IS REMOVED
+    P6_Learn_From_History -- "Background Process Traces" --> P7_Record_System_Traces;
+    P7_Record_System_Traces -- "Aggregated Trace Data" --> ObservabilityLog;
+
+    %% title Revised Level 1 Data Flow Diagram (P5.0 No Tracing)

@@ -1,0 +1,89 @@
+---
+config:
+  flowchart:
+    curve: basis
+---
+
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '16px',
+      'primaryColor': '#ADD8E6',        # Light Blue UI elements
+      'nodeBorder': '#383838',
+      'lineColor': '#555',
+      'primaryTextColor': '#333',
+      'secondaryColor': '#FDFD96',      # Light Yellow Backend API
+      'tertiaryColor': '#C1E1C1',       # Light Green User
+      'quadraryColor': '#E6E6FA'        # Lavender UI Panels/Sections
+    }
+  }
+}%%
+
+graph LR;
+
+    %% Define Styles
+    classDef userStyle fill:#C1E1C1,stroke:#508050,stroke-width:2px;
+    classDef uiComponentStyle fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef uiPanelStyle fill:#E6E6FA,stroke:#9370DB,stroke-width:2px;
+    classDef backendApiStyle fill:#FDFD96,stroke:#B8B84E,stroke-width:2px;
+
+    %% Define User and Backend API Nodes
+    User[User]:::userStyle;
+    BackendAPI[Backend API]:::backendApiStyle;
+
+    %% Define React App Structure (using subgraphs for panels)
+    subgraph ReactApp [React Chat Application]
+        HistoryList:::uiPanelStyle
+        MainPanel:::uiPanelStyle
+        SettingsPanel:::uiPanelStyle
+
+        subgraph HistoryPanel[Conversation History Panel]
+            direction TB;
+            HistoryList[Conversation List]:::uiComponentStyle;
+            RenameButton[Rename Conversation Button]:::uiComponentStyle;
+            DeleteButton[Delete Conversation Button]:::uiComponentStyle;
+        end
+
+        subgraph MainPanel[Main Chat Area]
+            direction TB %% Items Top-to-Bottom inside main panel
+            ModelSelector[LLM / Model Selector Dropdown]:::uiComponentStyle;
+            MessageList[Message Display Area]:::uiComponentStyle;
+            InputBar[User Input Bar + Send]:::uiComponentStyle;
+        end
+
+        subgraph SettingsPanel[Settings / Preferences Panel]
+            direction TB %% Items Top-to-Bottom inside settings
+            PreferenceOptions[User Preference Controls]:::uiComponentStyle;
+            SaveSettingsButton[Save Settings Button]:::uiComponentStyle;
+        end
+    end
+
+    %% --- Define Interactions ---
+
+    %% User Interactions with UI Components
+    User -- Selects Conversation --> HistoryList;
+    User -- Clicks Rename --> RenameButton;
+    User -- Clicks Delete --> DeleteButton;
+    User -- Selects Model --> ModelSelector;
+    User -- Views Messages --> MessageList;
+    User -- Types Query --> InputBar;
+    User -- Clicks Send --> InputBar;
+    User -- Modifies Preferences --> PreferenceOptions;
+    User -- Clicks Save --> SaveSettingsButton;
+
+    %% UI Component Interactions with Backend API (Labeled Bidirectional Arrows)
+    HistoryPanel <-- Load / Update History --> BackendAPI;
+    HistoryList <-- Load Conversation Messages --> BackendAPI;
+    RenameButton <-- Rename Conversation Request --> BackendAPI;
+    DeleteButton <-- Delete Conversation Request --> BackendAPI;
+    %% Input bar sends query (potentially including selected model info)
+    InputBar <-- Send Query / Receive Response --> BackendAPI;
+    SaveSettingsButton <-- Save Preferences Request --> BackendAPI;
+    SettingsPanel <-- Load Preferences --> BackendAPI;
+
+    %% Backend API Updates UI (Simplified Flow)
+    BackendAPI -- Update Chat Messages --> MessageList;
+    %% Model Selector might influence InputBar's API call
+    ModelSelector -- Inform Query Construction --> InputBar;

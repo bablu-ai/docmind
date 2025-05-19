@@ -1,0 +1,149 @@
+%% title: Revised Phase 4 Architecture Diagram: RAG, Vector DB, and Comprehensive Memory
+%% Mermaid initialization for styling
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif',
+      'fontSize': '16px',
+      'primaryColor': '#ADD8E6',    %% Light Blue (UI)
+      'secondaryColor': '#90EE90',  %% Light Green (Backend/Supervisor)
+      'tertiaryColor': '#A3DA8D',   %% Medium Green (Specialized Agent)
+      'quaternaryColor': '#FFB6C1', %% Light Red/Pink (Database/Memory/Resources)
+      'lineColor': '#555',
+      'nodeBorder': '#333',
+      'primaryTextColor': '#333',
+      'clusterBorder': '#BBB',
+      'clusterBkg': '#F9f9f9'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+flowchart TD
+
+    %% Define Custom Styles
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;
+    classDef agentStyle fill:#A3DA8D,stroke:#333,stroke-width:2px;
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    classDef memoryStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+
+    %% --- Top-Level Subgraphs & Nodes ---
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface]:::uiStyle
+    end
+
+    subgraph BS[Backend Services - Real-time]
+        direction TB
+        BackendAPI[Backend API]:::backendStyle
+
+        subgraph SupervisorGraph[Supervisor Agent LangGraph >Real-time Queries]
+            direction TB
+            Input(Receive Query)
+            SupervisorNode{Supervisor Decision}:::backendStyle
+            RAGAgentNode(RAG Agent):::agentStyle
+            StockAgentNode(Stock Agent):::agentStyle
+            WeatherAgentNode(Weather Agent):::agentStyle
+            LLMAgentNode(LLM Agent):::agentStyle
+            ProcessResults[Process & Consolidate Results]
+            FinalizeResponse[Finalize Response]
+
+            %% Internal LangGraph Flow
+            Input --> SupervisorNode;
+            SupervisorNode -- "Route to RAG" --> RAGAgentNode;
+            SupervisorNode -- "Route to Stock" --> StockAgentNode;
+            SupervisorNode -- "Route to Weather" --> WeatherAgentNode;
+            SupervisorNode -- "Route to LLM" --> LLMAgentNode;
+
+            RAGAgentNode --> ProcessResults;
+            StockAgentNode --> ProcessResults;
+            WeatherAgentNode --> ProcessResults;
+            LLMAgentNode --> ProcessResults;
+            ProcessResults --> FinalizeResponse;
+        end
+
+        subgraph LG[LLM Gateway]
+            direction TB
+            LiteLLMGateway{{LiteLLM}}:::externalStyle
+        end
+    end
+
+    %% Central Memory Components (Conceptual)
+    STM[(Short-Term Memory<br>ConversationBufferMemory)]:::memoryStyle
+    EpisodicMemory[Episodic Memory<br>Vector DB Logs & Traces]:::memoryStyle
+    LongTermMemory[Long-Term Memory<br>Learned Insights]:::memoryStyle
+
+    %% Data Storage (Physical)
+    subgraph DS[Data Storage]
+        direction TB
+        MongoDB[/MongoDB<br>User/Conv Data, LTM Storage, Detailed Episodic Logs\]:::dbStyle
+        VectorDB[(Vector Database<br>RAG Docs, Episodic Traces Storage)]:::dbStyle
+    end
+
+    %% Background Memory Update System (Separated)
+    subgraph BackgroundUpdater[Background Memory Update System]
+        direction TB
+        AnalyzeEpisodicMemory[Analyze Episodic Memory]
+        ExtractInsights[Extract & Generalize Insights]
+        UpdateLongTermMemory[Update Long-Term Memory]
+
+        %% Internal Background Flow
+        AnalyzeEpisodicMemory --> ExtractInsights;
+        ExtractInsights --> UpdateLongTermMemory;
+    end
+
+    %% External Services & APIs
+    ExternalLLM[External LLM Provider]:::externalStyle
+    StockAPI[External Stock API)]:::externalStyle
+    WeatherAPI[External Weather API)]:::externalStyle
+
+    %% --- Connections between Components ---
+
+    %% Frontend <--> Backend API
+    FE -- "User Query" --> BackendAPI;
+    BackendAPI -- "Response" --> FE;
+
+    %% Backend API <--> SupervisorGraph
+    BackendAPI -- "Invoke Supervisor" --> SupervisorGraph;
+    SupervisorGraph -- "Final Response" --> BackendAPI;
+
+    %% SupervisorGraph <--> Memory Components
+    SupervisorGraph <-- "Access/Update STM" --> STM;
+    SupervisorGraph -- "Write Trace/Result" --> EpisodicMemory;
+    SupervisorNode -- "Read LTM" --> LongTermMemory;
+    ProcessResults -- "Read LTM" --> LongTermMemory;
+
+    %% LLM Agent (within SupervisorGraph) <--> LLM Gateway (within BS) <--> External LLM
+    LLMAgentNode -- "Calls LLM" --> LG;
+    LG -- "Uses" --> ExternalLLM;
+
+    %% Specialized Agents (within SupervisorGraph) <--> External Tools & Data Storage
+    RAGAgentNode -- "Query RAG Docs" --> VectorDB;
+    %% RAG agent can also interact with episodic memory
+    RAGAgentNode -- "Access/Contribute Episodic" --> EpisodicMemory; 
+    StockAgentNode <-- "Call API<br>Get Response" --> StockAPI;
+    WeatherAgentNode <-- "Call API<br>Get Response" --> WeatherAPI;
+
+    %% Backend API <--> Data Storage (for user/conversation data)
+    BackendAPI <-- "User/Conv Data Ops" --> MongoDB;
+
+    %% BackgroundUpdater <--> Memory Components (and implicitly their storage)
+    AnalyzeEpisodicMemory -- "Read From" --> EpisodicMemory;
+    %% If background analysis also needs direct access to detailed MongoDB logs for episodes:
+    %% AnalyzeEpisodicMemory -- "Read Detailed Logs From" --> MongoDB;
+    UpdateLongTermMemory -- "Write Insights To" --> LongTermMemory;
+
+    %% Conceptual Memory <--> Physical Storage Links (illustrative)
+    EpisodicMemory -. "Stored in / Traces" .-> VectorDB;
+    EpisodicMemory -. "Detailed Logs in" .-> MongoDB; 
+    LongTermMemory -. "Stored in" .-> MongoDB;
+    %% STM is primarily managed by the application; its persistence for conversation history is covered by BackendAPI -> MongoDB link.
+
+    %% Default link style
+    linkStyle default interpolate basis;
+    %% If detailed logs complement traces in VectorDB

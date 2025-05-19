@@ -1,0 +1,19 @@
+{
+  "stocks: {
+    ["author": "Jane Smith",
+    "department": "LIC",
+    "created_date": "2024-01-15",
+    "topics": ["Living Benefits","Life Insurance", "Policy"],
+    "mime_type": "application/octet-stream",
+    "file_path": "data/policy.pdf"]
+  },
+  "data/What_Is_Azure_Kubernetes_Service_(AKS).txt": {
+    "author": "Pankaj Kumar",
+    "department": "AI/ML",
+    "created_date": "2024-02-10",
+    "topics": ["AKS", "Azure", "Kubernetes"],
+    "mime_type": "text/plain",
+    "file_path": "data/What_Is_Azure_Kubernetes_Service_(AKS).txt"
+  }
+
+}

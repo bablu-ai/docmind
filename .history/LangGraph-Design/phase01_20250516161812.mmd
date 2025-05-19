@@ -1,0 +1,62 @@
+---
+config:
+  theme: default
+  flowchart:
+    curve: linear %% Use 'linear' or 'basis' for curves if 'flowchart' default isn't curved
+  accessibleTexts: false %% Adjust accessibility if needed, though usually best to leave true
+  securityLevel: loose %% May be needed for external links or specific rendering environments, use with caution
+  look: handDrawn %% Request hand-drawn look - support is renderer-dependent
+---
+flowchart TD
+    %% Configuration for styling
+    %% Using standard colors with hex codes
+    classDef actor fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    classDef component fill:#90EE90,stroke:#333,stroke-width:2px;
+    classDef database fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef external fill:#FFFF99,stroke:#333,stroke-width:2px;
+    %% classDef group fill:#F9F9F9,stroke:#BBB,stroke-width:1px,stroke-dasharray: 5 5; %% Keeping default subgraph style
+
+    %% Nodes
+    A[User Interface (UI)]:::actor
+    B[Backend API (Python)]:::component %% Changed to rectangle for clarity as a process/component
+    C{{LiteLLM}}:::component %% Kept iconic shape for abstraction layer
+    D[/MongoDB Database\]:::database %% Iconic representation for Database
+    E[(External LLM Provider)]:::external %% Kept iconic shape for external service
+
+    %% Connections/Flow
+    A -- "User Query" --> B
+    B -- "Forward Query" --> C
+    C -- "Request to LLM" --> E
+    E -- "Response from LLM" --> C
+    C -- "Forward Response" --> B
+    B -- "Generate Response" --> A
+    B -- "Store/Retrieve Basic Data" --> D
+
+    %% Styling with subgraphs and colors
+    subgraph Frontend
+        A
+    end
+
+    subgraph Backend Services
+        direction LR %% Can set direction for subgraph if needed, but TD is main graph
+        B
+        subgraph Data Storage
+            direction TD
+            D
+        end
+        subgraph LLM Gateway
+            direction TD
+            C
+        end
+        B --- C
+        B --- D
+    end
+
+    subgraph External Dependencies
+        E
+    end
+
+    %% Connecting subgraphs - sometimes needed explicitly depending on structure
+    %% Backend Services --> External Dependencies %% Implied by B->C->E flow
+
+    title Phase 1 Architecture Diagram: Basic Setup

@@ -1,0 +1,86 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       /* ancient parchment (for graph background) */
+      'nodeBorder': '#8B4513',        /* saddle brown (for node borders) */
+      'lineColor': '#A0522D',         /* sienna (for lines) */
+      'primaryTextColor': '#5C4033',  /* dark brown (for text) */
+      'memoryColor': '#E6E6FA',       /* lavender (for memory components) */
+      'dbColor': '#FFB6C1',           /* light pink (for DB) */
+      'vectorDBColor': '#B0E0E6',     /* powder blue (for Vector DB) */
+      'graphColor': '#F5DEB3',        /* wheat (for LangGraph components) */
+      'processColor': '#D2B48C',     /* tan (for background process components) */
+      'edgeLabelBackground':'#FFFFE0', /* light yellow (for edge labels background) */
+      'clusterBkg': '#FFFFE0'       /* light yellow (for cluster background) */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef mainGraph fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef memoryComp fill:#E6E6FA,stroke:#483D8B,stroke-width:2px,shape:cylinder;
+    classDef dbStore fill:#FFB6C1,stroke:#A52A2A,stroke-width:2px,shape:cylinder;
+    classDef vectorStore fill:#B0E0E6,stroke:#6495ED,stroke-width:2px,shape:cylinder;
+    classDef backgroundGraph fill:#D2B48C,stroke:#8B4513,stroke-width:2px;
+    classDef logicNode fill:#FFF8DC,stroke:#8B4513,stroke-width:1px;
+
+
+    subgraph Main_Agent_System ["Main Agent System (Real-time Interaction)"]
+        direction TB
+        UserInput[User Input] --> MainAgentLangGraph;
+        MainAgentLangGraph["Main Agent LangGraph<br/>(Orchestrates Query Processing, Tool Use, RAG)"]:::mainGraph;
+        MainAgentLangGraph --> AgentOutput[Agent Response to User];
+
+        STM["Short-Term Memory<br/>(ConversationBufferMemory, Active Context)"]:::memoryComp;
+        MainAgentLangGraph -- "Reads/Writes (State)" --> STM;
+    end
+
+    subgraph Episodic_Memory_Store ["Episodic Memory Store"]
+        direction LR
+        VectorDB_Episodic["Vector Database<br/>(Interaction Traces, Tool Calls, RAG step details, Embeddings)"]:::vectorStore;
+        MongoDB_Conv_Logs["MongoDB<br/>(Conversation Logs - linking to Episodic details)"]:::dbStore;
+    end
+
+    subgraph Long_Term_Memory_Store ["Long-Term Agentic Memory Store"]
+        direction TB
+        LTM_DB["MongoDB / Dedicated Store<br/>(Generalized Insights, Learned Patterns, Refined Preferences)"]:::dbStore;
+    end
+
+    MainAgentLangGraph -- "Writes Interaction Details" --> VectorDB_Episodic;
+    MainAgentLangGraph -- "Writes Core Log Link" --> MongoDB_Conv_Logs;
+    MainAgentLangGraph -- "Reads Learned Knowledge" --> LTM_DB;
+
+
+    subgraph Background_Memory_Updater ["Background Memory Updater (Scheduled LangGraph Subgraph)"]
+        direction TB
+        Scheduler{{Scheduler / Cron Job}} --> BG_LangGraph_Start;
+        BG_LangGraph_Start[Start Update Process] --> AnalyzeEpisodic;
+        AnalyzeEpisodic["Analyze Episodic Memory Node<br/>(Reads from VectorDB & MongoDB Logs)"]:::backgroundGraph;
+        ExtractInsights["Extract & Generalize Insights Node<br/>(LLM-based analysis)"]:::backgroundGraph;
+        ConsolidateToLTM["Consolidate & Write to LTM Node"]:::backgroundGraph;
+        UpdateComplete[End Update Process]
+
+        AnalyzeEpisodic --> ExtractInsights;
+        ExtractInsights --> ConsolidateToLTM;
+        ConsolidateToLTM --> UpdateComplete;
+    end
+
+    %% Connections for Background Updater
+    AnalyzeEpisodic -- "Reads Traces" --> VectorDB_Episodic;
+    AnalyzeEpisodic -- "Reads Logs" --> MongoDB_Conv_Logs;
+    ConsolidateToLTM -- "Writes Insights" --> LTM_DB;
+
+    %% Styling Subgraphs
+    class Main_Agent_System logicNode; 
+    class Episodic_Memory_Store logicNode;
+    class Long_Term_Memory_Store logicNode;
+    class Background_Memory_Updater logicNode;
+
+
+    %% title Phase 9 Architecture: Deep Memory Integration & Background Updater

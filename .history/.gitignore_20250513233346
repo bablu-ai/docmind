@@ -1,0 +1,9 @@
+.history/.idea/*
+.history/design/*
+.history/design/Editor*
+.history/
+.idea/*
+.venv/*
+app/.env
+lightRAG/env.example
+lightRAG/.history/*

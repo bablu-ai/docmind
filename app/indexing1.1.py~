@@ -1,0 +1,205 @@
+# app/indexing.py
+import os
+from typing import List, Dict, Any, Optional
+from langchain.schema.document import Document
+from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_chroma import Chroma
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import EmbeddingsFilter
+from langchain.chains import RetrievalQA
+
+from app.config import CHROMA_STORE_DIR, DEFAULT_LLM_MODEL, DEFAULT_EMBEDDING_MODEL, OPENAI_API_KEY
+
+
+class DocumentIndexer:
+    def __init__(self,
+                 llm_model: str = DEFAULT_LLM_MODEL,
+                 embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+                 collection_name: str = "MyStockCollection"):
+        """Initialize the document indexer with specified models."""
+        # Configure default models
+        self.llm = OpenAI(model=llm_model, api_key=OPENAI_API_KEY)
+        self.embedding_model = OpenAIEmbeddings(
+            model=embedding_model,
+            api_key=OPENAI_API_KEY
+        )
+
+        self.collection_name = collection_name
+        self.vector_store = None
+
+    def create_vector_index(self,
+                            documents: List[Document],
+                            persist: bool = True) -> Chroma:
+        """Create a vector store index from processed documents."""
+        # Extract document IDs for consistent storage
+        document_ids = [doc.metadata.get("id") for doc in documents]
+
+        # Create Chroma vector store
+        self.vector_store = Chroma.from_documents(
+            documents=documents,
+            embedding=self.embedding_model,
+            ids=document_ids,
+            collection_name=self.collection_name,
+            persist_directory=CHROMA_STORE_DIR if persist else None
+        )
+
+        if persist:
+            self.vector_store.persist()
+            print(f"Vector index created and saved to {CHROMA_STORE_DIR}")
+
+        return self.vector_store
+
+    def load_index(self) -> Optional[Chroma]:
+        """Load a previously saved index."""
+        if not os.path.exists(CHROMA_STORE_DIR):
+            print(f"Index not found at {CHROMA_STORE_DIR}")
+            return None
+
+        self.vector_store = Chroma(
+            persist_directory=CHROMA_STORE_DIR,
+            embedding_function=self.embedding_model,
+            collection_name=self.collection_name
+        )
+
+        return self.vector_store
+
+    def update_index(self, documents: List[Document]) -> Chroma:
+        """Update the index with new documents, avoiding duplicates."""
+        # Load existing index if available
+        if self.vector_store is None:
+            try:
+                self.load_index()
+            except Exception:
+                # If loading fails, create a new index
+                return self.create_vector_index(documents)
+
+        # Get document IDs directly from metadata
+        document_ids = [doc.metadata.get("id") for doc in documents]
+
+        # Get existing IDs from ChromaDB
+        try:
+            collection = self.vector_store.get()
+            existing_ids = set(collection["ids"]) if collection["ids"] else set()
+        except Exception as e:
+            print(f"Error accessing collection: {e}")
+            existing_ids = set()
+
+        # Filter out documents that already exist
+        new_docs = []
+        new_docs_ids = []
+        for doc, doc_id in zip(documents, document_ids):
+            if doc_id not in existing_ids:
+                new_docs.append(doc)
+                new_docs_ids.append(doc_id)
+
+        # Only add documents if there are new ones
+        if new_docs:
+            self.vector_store.add_documents(
+                documents=new_docs,
+                ids=new_docs_ids
+            )
+            # Persist changes to disk
+            self.vector_store.persist()
+            print(f"Added {len(new_docs)} new documents to ChromaDB. Skipped {len(documents) - len(new_docs)} existing documents.")
+        else:
+            print("No new documents to add to ChromaDB. All documents already exist.")
+
+        return self.vector_store
+
+    def delete_collection(self):
+        """Delete the entire collection."""
+        if self.vector_store is None:
+            self.load_index()
+
+        if self.vector_store:
+            self.vector_store.delete_collection()
+            self.vector_store = None
+            print(f"Collection {self.collection_name} deleted")
+
+    def create_retriever(self, search_type="similarity", k=4, **kwargs):
+        """Create a retriever from the vector store.
+        Performs straightforward vector similarity search
+        Returns the k most similar documents to the query
+        Simple and fast, good for basic retrieval tasks
+        Supports different search types
+        like "similarity" or "mmr" (Maximum Marginal Relevance)
+        """
+        if self.vector_store is None:
+            self.load_index()
+
+        if self.vector_store is None:
+            raise ValueError("No vector store available. Please create or load an index first.")
+
+        # Create base retriever
+        retriever = self.vector_store.as_retriever(
+            search_type=search_type,
+            search_kwargs={"k": k, **kwargs}
+        )
+
+        return retriever
+
+    def create_contextual_retriever(self, threshold=0.7, k=4):
+        """Create a contextual compression retriever with embeddings filter.
+        This is a more advanced retrieval mechanism that adds a filtering layer
+        on top of the base retriever. Helps reduce irrelevant results by filtering out documents that aren't similar enough
+        More selective and precise, potentially improving relevance
+        """
+        base_retriever = self.create_retriever(k=k)
+
+        # Create embeddings filter
+        filter_compressor = EmbeddingsFilter(
+            embeddings=self.embedding_model,
+            similarity_threshold=threshold
+        )
+
+        # Create contextual compression retriever
+        contextual_retriever = ContextualCompressionRetriever(
+            base_compressor=filter_compressor,
+            base_retriever=base_retriever
+        )
+
+        return contextual_retriever
+
+    def create_qa_chain(self, retriever=None):
+        """Create a QA chain using the specified retriever or default retriever.
+         create_qa_chain method creates a question-answering pipeline that ties together
+         your retrieval system with language model capabilities
+        """
+        if retriever is None:
+            retriever = self.create_retriever()
+
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=self.llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True
+        )
+
+        return qa_chain
+
+
+# Example usage
+if __name__ == "__main__":
+    from app.ingestion import DocumentProcessor
+
+    # Process documents
+    processor = DocumentProcessor()
+    documents = processor.ingest_documents()
+    web_documents = processor.ingest_web_pages()
+
+    # Combine all documents
+    all_documents = documents + web_documents
+
+    # Create indexes
+    indexer = DocumentIndexer()
+    vector_store = indexer.create_vector_index(all_documents)
+
+    # Test query using different retrieval methods
+    retriever = indexer.create_retriever()
+    results = retriever.get_relevant_documents("What is the stock market?")
+    print(f"Found {len(results)} relevant documents")
+
+    # Test QA chain
+    qa_chain = indexer.create_qa_chain()
+    response = qa_chain({"query": "What are the main topics in these documents?"})
+    print(response["result"])

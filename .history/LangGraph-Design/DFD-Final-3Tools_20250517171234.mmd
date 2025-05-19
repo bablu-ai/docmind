@@ -1,0 +1,66 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities (representing other L1 processes or true externals) */
+      'processColor': '#FFFACD',      /* lemonchiffon - for P3.0 sub-processes */
+      'externalProcessColor': '#E0FFFF', /* Light cyan for other Level 1 processes */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect;
+
+    %% External Processes & Entities (Sources/Sinks for P3.0)
+    P2_Orchestrate_Response["P2.0 Orchestrate Response"]:::externalProcess;
+    External_Info_APIs["External Information APIs<br/>(Stock, Weather, Account API Endpoint)"]:::entity;
+    P7_Record_System_Traces["P7.0 Record System Traces"]:::externalProcess;
+
+    %% Sub-Processes within P3.0 Execute External Tools
+    subgraph P3_Process ["Process 3.0: Execute External Tools"]
+        direction TB
+        P3_1_Receive_Tool_Request["3.1 Receive & Parse<br/>Tool Call Request"]:::process;
+        P3_2_Format_API_Call["3.2 Format API Specific<br/>Request & Parameters"]:::process;
+        P3_3_Execute_External_API_Call["3.3 Execute External<br/>API Call"]:::process;
+        P3_4_Handle_API_Response["3.4 Receive & Handle<br/>API Response (Incl. Errors)"]:::process;
+        P3_5_Format_Tool_Output["3.5 Format Standardized<br/>Tool Output Data"]:::process;
+        P3_6_Log_Tool_Call_Trace["3.6 Log Tool Call<br/>Trace"]:::process;
+    end
+
+    %% Data Flows for P3.0
+
+    %% Receiving and Parsing Tool Request
+    P2_Orchestrate_Response -- "Tool Call Request<br/>(Tool Name, Input Params)" --> P3_1_Receive_Tool_Request;
+    P3_1_Receive_Tool_Request -- "Parsed Tool Info & Params" --> P3_2_Format_API_Call;
+    
+    %% Formatting and Executing API Call
+    P3_2_Format_API_Call -- "Formatted API Request<br/>(URL, Headers, Body)" --> P3_3_Execute_External_API_Call;
+    P3_3_Execute_External_API_Call -- "HTTP Request" --> External_Info_APIs;
+    External_Info_APIs -- "Raw API Response<br/>(Data/Error)" --> P3_4_Handle_API_Response;
+    
+    %% Handling API Response and Formatting Output
+    P3_4_Handle_API_Response -- "Processed API Data or Error Info" --> P3_5_Format_Tool_Output;
+    P3_5_Format_Tool_Output -- "Tool Output Data<br/>(Standardized Result/Error)" --> P2_Orchestrate_Response;
+    
+    %% Logging Traces
+    P3_1_Receive_Tool_Request -- "Trace Data (Request Received)" --> P3_6_Log_Tool_Call_Trace;
+    P3_3_Execute_External_API_Call -- "Trace Data (API Call Sent)" --> P3_6_Log_Tool_Call_Trace;
+    P3_4_Handle_API_Response -- "Trace Data (Response Received)" --> P3_6_Log_Tool_Call_Trace;
+    P3_5_Format_Tool_Output -- "Trace Data (Output Formatted)" --> P3_6_Log_Tool_Call_Trace;
+    P3_6_Log_Tool_Call_Trace -- "Tool Call Traces" --> P7_Record_System_Traces;
+
+    title Level 2 DFD for P3.0: Execute External Tools

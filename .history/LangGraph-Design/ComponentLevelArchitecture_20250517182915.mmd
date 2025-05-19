@@ -1,0 +1,193 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '13px',
+      'primaryColor': '#F5F5DC',        /* beige - main background/default */
+      'nodeBorder': '#A0522D',         /* sienna - component borders */
+      'lineColor': '#8B4513',          /* saddlebrown - connection lines */
+      'primaryTextColor': '#5C4033',   /* dark brown */
+      'componentBg': '#FFFACD',        /* lemonchiffon - for components */
+      'interfaceColor': '#E0FFFF',     /* lightcyan - for interfaces/APIs */
+      'libColor': '#D8BFD8',           /* thistle - for libraries/frameworks */
+      'dbColor': '#FFB6C1',            /* lightpink - for databases */
+      'externalColor': '#90EE90',      /* lightgreen - for external services */
+      'edgeLabelBackground':'#F5F5F5', /* very light grey for edge labels */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef component fill:#FFFACD,stroke:#A0522D,stroke-width:2px;
+    classDef interface fill:#E0FFFF,stroke:#A0522D,stroke-width:1.5px,linestyle:dashed;
+    classDef library fill:#D8BFD8,stroke:#A0522D,stroke-width:1.5px;
+    classDef database fill:#FFB6C1,stroke:#A0522D,stroke-width:2px,shape:cylinder;
+    classDef external fill:#90EE90,stroke:#A0522D,stroke-width:2px,shape:rectangle;
+
+    %% UI Layer
+    subgraph UI_Layer ["User Interface Layer (React)"]
+        direction TB
+        UIC_Chat["Chat Interface Component"]:::component;
+        UIC_History["History Management Component"]:::component;
+        UIC_LLM_Selector["LLM Selection Component"]:::component;
+        UIC_Preferences["Preferences Component"]:::component;
+        UIC_Doc_Ingestion["Document Ingestion UI Component"]:::component;
+    end
+
+    %% Backend API Layer
+    subgraph API_Layer ["Backend API Layer (Python/FastAPI)"]
+        direction TB
+        API_Gateway["API Gateway / Main Router"]:::interface;
+        API_Chat_Service["Chat Service Endpoint (/chat)"]:::component;
+        API_History_Service["History Service Endpoint (/history)"]:::component;
+        API_Models_Service["Models Service Endpoint (/models)"]:::component;
+        API_Prefs_Service["Preferences Service Endpoint (/preferences)"]:::component;
+        API_Ingestion_Service["Ingestion Service Endpoint (/ingest)"]:::component;
+        
+        API_Gateway --> API_Chat_Service;
+        API_Gateway --> API_History_Service;
+        API_Gateway --> API_Models_Service;
+        API_Gateway --> API_Prefs_Service;
+        API_Gateway --> API_Ingestion_Service;
+    end
+
+    %% Agent Core & Orchestration Layer
+    subgraph Agent_Core_Layer ["Agent Core & Orchestration (Python)"]
+        direction TB
+        Agent_LangGraph_Core["Main Agent LangGraph Core"]:::library;
+        Query_Parser_Router["Query Parser & Router Node (LLM-based)"]:::component;
+        Tool_Coordinator["Tool Coordinator/Dispatcher Node"]:::component;
+        RAG_Coordinator["RAG Coordinator Node"]:::component;
+        Response_Synthesizer["Response Synthesizer Node (LLM-based)"]:::component;
+        Final_Response_Refiner["Final Response Refiner Tool/Node"]:::component;
+        
+        Agent_LangGraph_Core -.-> Query_Parser_Router;
+        Agent_LangGraph_Core -.-> Tool_Coordinator;
+        Agent_LangGraph_Core -.-> RAG_Coordinator;
+        Agent_LangGraph_Core -.-> Response_Synthesizer;
+        Agent_LangGraph_Core -.-> Final_Response_Refiner;
+    end
+
+    %% Memory Management Layer
+    subgraph Memory_Management_Layer ["Memory Management Layer (Python)"]
+        direction TB
+        STM_Manager["Short-Term Memory Manager<br/>(ConversationBufferMemory - LangChain)"]:::component;
+        Episodic_Memory_Manager["Episodic Memory Manager<br/>(VectorDB Interface - LangChain Retriever)"]:::component;
+        LTM_Manager["Long-Term Memory Manager<br/>(MongoDB Interface)"]:::component;
+        LTM_Background_Updater["LTM Background Updater<br/>(Scheduled LangGraph Subgraph)"]:::component;
+    end
+
+    %% Tooling Layer
+    subgraph Tooling_Layer ["Tooling Layer (Python - LangChain Tools)"]
+        direction TB
+        Stock_Tool["Stock Information Tool"]:::component;
+        Weather_Tool["Weather Information Tool"]:::component;
+        Account_API_Tool["Account API Tool"]:::component;
+        Enhanced_Search_Tool["Enhanced Search Tool (LLM-based)"]:::component;
+        Internal_Doc_Processing_Tool["Internal Document Processing Tool<br/>(Used by Agent for ad-hoc tasks)"]:::component;
+    end
+    
+    %% Data Ingestion Layer
+    subgraph Data_Ingestion_Layer ["Data Ingestion Layer (Python)"]
+        direction TB
+        LightRAG_Doc_Processor["LightRAG Document Processor Component"]:::library;
+        File_Handler["File Handler & Parser Module"]:::component;
+        Web_Scraper_Module["Web Scraper Module"]:::component;
+        Embedding_Generator["Embedding Generator Module"]:::component;
+        
+        LightRAG_Doc_Processor -.-> File_Handler;
+        LightRAG_Doc_Processor -.-> Web_Scraper_Module;
+        LightRAG_Doc_Processor -.-> Embedding_Generator;
+    end
+
+    %% Abstraction & Utility Layer
+    subgraph Abstraction_Utility_Layer ["Abstraction & Utility Layer (Python)"]
+        direction TB
+        LiteLLM_Interface["LiteLLM Interface Module"]:::library;
+        Observability_Client["Observability Client<br/>(OpenTelemetry SDK)"]:::library;
+    end
+
+    %% Data Persistence Layer
+    subgraph Data_Persistence_Layer ["Data Persistence Layer"]
+        direction TB
+        MongoDB_Store["MongoDB"]:::database;
+        VectorDB_Store["Vector Database<br/>(Chroma/FAISS)"]:::database;
+        Tracing_Backend_DB["Tracing Backend DB<br/>(Jaeger/Phoenix Store)"]:::database;
+    end
+
+    %% External Services
+    subgraph External_Services_Layer ["External Services & APIs"]
+        direction TB
+        Ext_LLM_Providers["External LLM Providers<br/>(OpenAI, Gemini, Anthropic, etc.)"]:::external;
+        Ext_Stock_API["External Stock API<br/>(Yahoo Finance)"]:::external;
+        Ext_Weather_API["External Weather API"]:::external;
+        Ext_Account_API_Endpoint["Local Account API Endpoint<br/>(localhost:8080)"]:::external;
+        Ext_Web_Sources["Target Web Sources (for scraping)"]:::external;
+    end
+
+    %% Core Interactions (High-Level between Layers/Major Components)
+    UI_Layer -- "HTTP API Calls" --> API_Layer;
+    API_Chat_Service -- "Invokes" --> Agent_LangGraph_Core;
+    API_History_Service -- "Accesses" --> STM_Manager;
+    API_History_Service -- "Accesses" --> Episodic_Memory_Manager;
+    %% For conversation logs
+    API_History_Service -- "Accesses" --> MongoDB_Store; 
+    API_Models_Service -- "Uses" --> LiteLLM_Interface;
+    %% For user preferences
+    API_Prefs_Service -- "Accesses" --> MongoDB_Store; 
+    API_Ingestion_Service -- "Triggers" --> LightRAG_Doc_Processor;
+
+    Agent_LangGraph_Core -- "Uses" --> STM_Manager;
+    Agent_LangGraph_Core -- "Uses" --> Episodic_Memory_Manager;
+    Agent_LangGraph_Core -- "Uses" --> LTM_Manager;
+    Agent_LangGraph_Core -- "Delegates to" --> Tool_Coordinator;
+    Agent_LangGraph_Core -- "Delegates to" --> RAG_Coordinator;
+    
+    Tool_Coordinator -- "Invokes" --> Tooling_Layer;
+    %% For its RAG capabilities (dynamic mode, graph search)
+    RAG_Coordinator -- "Uses" --> LightRAG_Doc_Processor; 
+    %% For RAG source docs
+    RAG_Coordinator -- "Accesses" --> VectorDB_Store; 
+    %% For RAG metadata
+    RAG_Coordinator -- "Accesses" --> MongoDB_Store; 
+
+    STM_Manager -- "Manages State In" --> ActiveConvCache_placeholder[(Active Conversation Cache)]; %% Placeholder, STM is often in-memory with LangGraph state
+    Episodic_Memory_Manager -- "Stores/Retrieves Traces" --> VectorDB_Store;
+    LTM_Manager -- "Stores/Retrieves Insights" --> MongoDB_Store;
+    %% Episodic
+    LTM_Background_Updater -- "Reads" --> VectorDB_Store; 
+    %% Conv Logs
+    LTM_Background_Updater -- "Reads" --> MongoDB_Store; 
+    %% LTM
+    LTM_Background_Updater -- "Writes" --> MongoDB_Store; 
+
+    %% For tools that might use LLMs themselves or abstract external calls
+    Tooling_Layer -- "Calls External APIs via" --> LiteLLM_Interface; 
+    Tooling_Layer -- "Directly Calls" --> Ext_Stock_API;
+    Tooling_Layer -- "Directly Calls" --> Ext_Weather_API;
+    Tooling_Layer -- "Directly Calls" --> Ext_Account_API_Endpoint;
+
+    LightRAG_Doc_Processor -- "Uses" --> Embedding_Generator;
+    Embedding_Generator -- "May use LLM for embeddings via" --> LiteLLM_Interface;
+    LightRAG_Doc_Processor -- "Stores Data In" --> VectorDB_Store;
+    LightRAG_Doc_Processor -- "Stores Metadata In" --> MongoDB_Store;
+    Web_Scraper_Module -- "Accesses" --> Ext_Web_Sources;
+
+    LiteLLM_Interface -- "Routes to" --> Ext_LLM_Providers;
+    %% Via Otel Collector (not shown, implied by client)
+    Observability_Client -- "Sends Data To" --> Tracing_Backend_DB; 
+
+    %% Connecting Observability Client to key components
+    Agent_LangGraph_Core -- "Instrumented by" --> Observability_Client;
+    API_Layer -- "Instrumented by" --> Observability_Client;
+    Tooling_Layer -- "Instrumented by" --> Observability_Client;
+    RAG_Coordinator -- "Instrumented by" --> Observability_Client;
+    LTM_Background_Updater -- "Instrumented by" --> Observability_Client;
+
+
+    %% title Component Level Architecture Diagram

@@ -1,0 +1,103 @@
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: base
+  themeVariables:
+    fontFamily: ''
+    fontSize: 14px
+    lineColor: '#000000'
+---
+flowchart TD
+    %% Define styles for nodes
+    classDef mainGraph fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef advancedRAGNode fill:#F0E68C,stroke:#8B4513,stroke-width:1px; 
+    classDef observabilityComp fill:#D8BFD8,stroke:#483D8B,stroke-width:2px;
+    classDef ingestionComp fill:#FFE4C4,stroke:#8B4513,stroke-width:2px;
+    classDef ingestionUI fill:#ADD8E6,stroke:#5A9FB8,stroke-width:1px;
+    classDef dbStore fill:#FFB6C1,stroke:#A52A2A,stroke-width:2px;
+    classDef vectorStore fill:#B0EEE6,stroke:#6495ED,stroke-width:2px;
+    classDef apiEndpoint fill:#C1E1C1,stroke:#38761D,stroke-width:1px;
+    classDef backendApiLayer fill:#90EE90,stroke:#38761D,stroke-width:2px;
+
+    %% Observability Platform
+    subgraph Observability["Observability Platform"]
+        OtelCollector["OpenTelemetry Collector"]
+        TracingBackend["Tracing Backend<br/>(Jaeger / Phoenix)"]
+        OtelCollector -- Exports Traces --> TracingBackend
+    end
+    
+    %% Main System
+    subgraph MainSystem["Main Agent & API System"]
+        BackendAPIs["Backend APIs<br/>(Chat, History, Models, Preferences)"]
+        MainAgentLangGraph["Main Agent LangGraph"]
+    end
+    
+    %% Advanced RAG Subgraph
+    subgraph AdvancedRAG["Advanced RAG Processing"]
+        RAG_QueryInput[RAG Query Input]
+        DynamicModeSelection{"Dynamic RAG Mode Selection<br/>(Mix, Global, Local, Naive)"}
+        GraphEntitySearch["Graph-Based Entity Search Node<br/>(LightRAG)"]
+        VectorRetrieval["Vector Store Retrieval"]
+        RerankNode["Rerank Results"]
+        RAG_Output["Synthesized RAG Output"]
+        
+        RAG_QueryInput --> DynamicModeSelection
+        DynamicModeSelection -- Mode Selected --> GraphEntitySearch
+        GraphEntitySearch --> VectorRetrieval
+        VectorRetrieval --> RerankNode
+        RerankNode --> RAG_Output
+    end
+    
+    %% Document Ingestion Pipeline
+    subgraph Ingestion["Document Ingestion Pipeline"]
+        IngestionUI["Document Upload UI<br/>(Upload PDF/TXT, Add Metadata)"]
+        WebScrapingTrigger["Web Scraping Trigger<br/>(e.g., API call, Scheduled Job)"]
+        LightRAG_DocProcessor["LightRAG Document Processor"]
+        
+        IngestionUI -- File & Metadata --> LightRAG_DocProcessor
+        WebScrapingTrigger -- URL & Config --> LightRAG_DocProcessor
+    end
+    
+    %% Knowledge Bases
+    subgraph Knowledge["Knowledge Bases"]
+        VectorDB_KnowledgeBase[("Vector Database<br/>(RAG Source Documents, Embeddings)")]
+        MongoDB_Metadata[("MongoDB<br/>(Document Metadata, Sources)")]
+    end
+    
+    %% Connections between components
+    MainAgentLangGraph -- Includes --> AdvancedRAG
+    BackendAPIs -- Invokes --> MainAgentLangGraph
+    
+    %% Tracing connections
+    BackendAPIs -- Sends Traces --> OtelCollector
+    MainAgentLangGraph -- Sends Traces --> OtelCollector
+    AdvancedRAG -- Sends Traces --> OtelCollector
+    
+    %% Ingestion connections
+    LightRAG_DocProcessor -- Processed Chunks & Embeddings --> VectorDB_KnowledgeBase
+    LightRAG_DocProcessor -- Extracted Metadata --> MongoDB_Metadata
+    
+    %% Advanced RAG connections
+    AdvancedRAG -- Reads from --> VectorDB_KnowledgeBase
+    AdvancedRAG -- Reads Metadata from --> MongoDB_Metadata
+    
+    %% Apply styles to subgraphs
+    style Observability fill:#D8BFD8,stroke:#483D8B,stroke-width:2px
+    style MainSystem fill:#F5DEB3,stroke:#8B4513,stroke-width:2px
+    style AdvancedRAG fill:#00DEB3,stroke:#8B4513,stroke-width:2px
+    style Ingestion fill:#FFE4C4,stroke:#8B4513,stroke-width:2px
+    style Knowledge fill:#FFB6C1,stroke:#A52A2A,stroke-width:2px
+    
+    %% Apply styles to nodes
+    class OtelCollector,TracingBackend observabilityComp
+    class BackendAPIs backendApiLayer
+    class MainAgentLangGraph mainGraph
+    class DynamicModeSelection,GraphEntitySearch advancedRAGNode
+    class IngestionUI ingestionUI
+    class WebScrapingTrigger,LightRAG_DocProcessor ingestionComp
+    class VectorDB_KnowledgeBase vectorStore
+    class MongoDB_Metadata dbStore
+
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    %% linkStyle default interpolate basis;

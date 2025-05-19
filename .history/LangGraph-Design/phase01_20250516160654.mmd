@@ -1,0 +1,64 @@
+%% mermaid version 10.x or higher for hand-drawn
+graph TD
+ 
+    %% Use 'flowchart' instead of 'graph' for potentially better support across versions
+    flowchart TD
+
+    %% Nodes
+    A[User Interface (UI)]:::actor
+    B{Backend API (Python)}:::component
+    C{{LiteLLM}}:::component
+    D[/MongoDB\]:::database %% Iconic representation for MongoDB
+    E[(External LLM Provider)]:::external
+
+    %% Connections/Flow
+    A -- User Query --> B
+    B -- Forward Query --> C
+    C -- Request --> E
+    E -- Response --> C
+    C -- Forward Response --> B
+    B -- Generate Response --> A
+    B -- Store/Retrieve Basic Data --> D
+
+    %% Styling with subgraphs and colors
+    subgraph User/Frontend
+        A
+    end
+
+    subgraph Backend Services
+        direction LR
+        B
+        subgraph Database
+            D
+        end
+        subgraph LLM Abstraction
+            C
+        end
+        B --- C
+        B --- D
+        C --- E
+    end
+
+    %% Attempting hand-drawn style (Mermaid syntax might vary or require specific configuration/renderer support)
+    %% This is often renderer-dependent. Adding class 'handdrawn' or similar is conceptual.
+    %% Actual implementation relies on the rendering environment.
+    %% class A,B,C,D,E handdrawn;
+
+    %% Adding larger font size (conceptual, often renderer-dependent)
+    %% style A text-align:center, font-size:14px
+    %% style B text-align:center, font-size:14px
+    %% style C text-align:center, font-size:14px
+    %% style D text-align:center, font-size:14px
+    %% style E text-align:center, font-size:14px
+
+    %% Applying colors using defined classes
+    class A actor
+    class B component
+    class C component
+    class D database
+    class E external
+
+    %% Applying curved lines (default for 'flowchart' often is, but can be explicit with specific link syntax if needed)
+    %% A --~ User Query ~--> B (Mermaid syntax for wavy lines, curved is often default for flowchart)
+
+    title Phase 1 Architecture Diagram: Basic Setup

@@ -1,0 +1,132 @@
+---
+config:
+  layout: elk
+  look: classic
+  theme: base
+  themeVariables:
+    fontFamily:  'Arial, sans-serif'
+    fontSize: 14px
+    lineColor: '#000000'
+---
+flowchart TD
+
+    %% Define Custom Styles
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;
+    %% Backend and Supervisor color
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;
+    %% Specialized Agent color
+    classDef agentStyle fill:#A3DA8D,stroke:#333,stroke-width:2px;
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px;
+    %% Tools/Resources color
+    classDef resourceStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;
+
+    %% Define Nodes and Subgraphs with IDs and Titles
+
+    subgraph FE[Frontend]
+        direction TB
+        UI[User Interface]:::uiStyle
+    end
+
+    %% Backend Services contains the core application logic
+    subgraph BS[Backend Services]
+        direction TB
+        BackendAPI[Backend API]:::backendStyle
+
+        %% Main LangGraph orchestrated by the Supervisor
+        subgraph SupervisorGraph[Supervisor Agent LangGraph]
+            direction TB
+            Input(Receive Query)
+            %% Supervisor Node decides routing
+            SupervisorNode{Supervisor Decision}:::backendStyle
+            %% First Specialized Agent Node (e.g., Stock Agent)
+            StockAgentNode(Stock Agent):::agentStyle
+            %% Node to process results from the specialized agent
+            ProcessStockResult[Process Stock Result]
+            %% Node to finalize the response before sending back
+            FinalizeResponse[Finalize Response]
+        end
+
+        %% LLM Gateway for abstracting LLM calls
+        subgraph LG[LLM Gateway]
+            direction TB
+            %% LiteLLM component
+            LiteLLMGateway{{LiteLLM}}:::externalStyle
+        end
+
+        %% Data Storage for user and conversation data
+        subgraph DS[Data Storage]
+             direction TB
+             %% User and Conversation History Data in MongoDB
+             MongoDB[/MongoDB<br>User/Conv Data\]:::dbStyle
+        end
+    end
+
+    %% External APIs and services
+    subgraph ED[External Dependencies]
+        direction TB
+        %% External LLM Provider
+        ExternalLLM[(External LLM Provider)]:::externalStyle
+        %% Stock API used by the Stock Agent
+        StockAPI[(External Stock API)]:::externalStyle
+    end
+
+    %% Define Flow (Edges)
+
+    %% Backend API sends response back to Frontend
+    BackendAPI -- "Response" --> FE;
+    
+    %% Frontend sends queries to Backend API
+    FE -- "User Query" --> BackendAPI;
+
+    %% Backend API invokes the Supervisor LangGraph
+    BackendAPI -- "Invoke Supervisor" --> Input;
+    BackendAPI-->FE
+    %% Flow within Supervisor LangGraph
+    Input --> SupervisorNode;
+
+    %% Supervisor routes to the First Specialized Agent (Stock Agent)
+    SupervisorNode -- "Route to Stock" --> StockAgentNode;
+    %% Simplified: Supervisor can also finalize directly for simple queries in this phase
+    SupervisorNode -- "Other / Finalize" --> FinalizeResponse;
+
+
+    %% Specialized Agent performs task and returns to Supervisor flow (conceptual return via state update)
+    %% Agent performs task, maybe processes internally
+    StockAgentNode --> ProcessStockResult;
+    %% Result is available for Supervisor
+    ProcessStockResult -. "Result to State" .-> SupervisorNode;
+
+
+    %% Specialized Agent interacts with its tools
+    %% Stock Agent calls the external Stock API
+    StockAgentNode -- "Call API" --> StockAPI;
+    %% Agent gets data from the tool
+    StockAPI -- "Data" --> StockAgentNode;
+
+
+    %% LLM interactions (via Gateway)
+    %% Supervisor might use LLM for routing decisions
+    SupervisorNode -- "LLM Call" --> LG;
+    %% Specialized Agents might use LLM internally (e.g., for processing or tool use)
+    StockAgentNode -- "LLM Call (Optional)" --> LG;
+    ProcessStockResult -- "LLM Call (Optional)" --> LG;
+    %% Final response generation uses LLM via the Gateway
+    FinalizeResponse -- "LLM Call" --> LG;
+
+
+    %% LiteLLM Gateway interacts with the External LLM Provider
+    LG -- "Request to LLM" --> ExternalLLM;
+    ExternalLLM -- "Response from LLM" --> LG;
+    ExternalLLM -- "Response from LLM" --> LG;
+
+    %% Backend API interacts with Data Storage for user/conv data
+    BackendAPI -- "DB Ops" --> DS;
+    DS -- "Data" --> BackendAPI;
+
+    %% Final response path from Supervisor LangGraph back to Backend API
+    FinalizeResponse -- "Final Response" --> BackendAPI;
+
+
+    %% Apply curved lines using 'basis' interpolation for smooth flow
+    %% linkStyle default interpolate basis;

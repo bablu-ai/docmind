@@ -1,0 +1,76 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '12px',
+      'primaryColor': '#F0F8FF',       /* aliceblue - diagram background */
+      'nodeBorder': '#000080',        /* navy - for entity/process/store borders */
+      'lineColor': '#0000CD',         /* mediumblue - for data flows */
+      'primaryTextColor': '#191970',  /* midnightblue - for text */
+      'processColor': '#FFFACD',      /* lemonchiffon - for P6.0 sub-processes */
+      'dataStoreColor': '#FFDAB9',    /* peachpuff - for data stores */
+      'entityColor': '#E6E6FA',       /* lavender - for external entities (Scheduler) */
+      'externalProcessColor': '#E0FFFF', /* Light cyan for other Level 1 processes (P7) */
+      'edgeLabelBackground':'#FFFFFF',/* white - for edge labels background */
+      'clusterBkg': '#FAFAFA'
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef process fill:#FFFACD,stroke:#000080,stroke-width:2px,shape:roundrect;
+    classDef dataStore fill:#FFDAB9,stroke:#000080,stroke-width:2px,shape:cylinder;
+    classDef entity fill:#E6E6FA,stroke:#000080,stroke-width:2px,shape:rectangle;
+    classDef externalProcess fill:#E0FFFF,stroke:#000080,stroke-width:1px,shape:roundrect;
+
+    %% External Entities & Data Stores (Sources/Sinks for P6.0)
+    Scheduler["Scheduler Event Source<br/>(e.g., Cron Job Trigger)"]:::entity;
+    VectorDB_RAG_Episodic["DS3: Knowledge Base &<br/>Episodic Traces (Vector DB)"]:::dataStore;
+    Mongo_UserPrefsConv["DS1: User, Preferences &<br/>Conversation Data (MongoDB)"]:::dataStore;
+    Mongo_LTM_Metadata["DS2: LTM & Document<br/>Metadata (MongoDB)"]:::dataStore; %% Target for LTM updates
+    P7_Record_System_Traces["P7.0 Record System Traces"]:::externalProcess;
+
+    %% Sub-Processes within P6.0 Learn From History (LTM Updater - Background)
+    subgraph P6_Process ["Process 6.0: Learn From History (LTM Updater - Background)"]
+        direction TB
+        P6_1_Initiate_Learning_Cycle["6.1 Initiate Learning Cycle<br/>(On Scheduled Trigger)"]:::process;
+        P6_2_Retrieve_Episodic_Data["6.2 Retrieve Relevant<br/>Episodic Data & Logs"]:::process;
+        P6_3_Analyze_Data_Identify_Patterns["6.3 Analyze Data &<br/>Identify Patterns (LLM/Analytics)"]:::process;
+        P6_4_Generalize_Consolidate_Insights["6.4 Generalize & Consolidate<br/>Learned Insights"]:::process;
+        P6_5_Update_LTM_Store["6.5 Update Long-Term<br/>Memory (LTM) Store"]:::process;
+        P6_6_Log_LTM_Update_Activity["6.6 Log LTM Update<br/>Process Activity"]:::process;
+    end
+
+    %% Data Flows for P6.0
+
+    %% Initiation and Data Retrieval
+    Scheduler -- "Scheduled Trigger Event" --> P6_1_Initiate_Learning_Cycle;
+    P6_1_Initiate_Learning_Cycle -- "Data Retrieval Criteria<br/>(e.g., time window, user segments)" --> P6_2_Retrieve_Episodic_Data;
+    
+    P6_2_Retrieve_Episodic_Data -- "Query for Episodic Traces" --> VectorDB_RAG_Episodic;
+    VectorDB_RAG_Episodic -- "Raw Episodic Interaction Traces" --> P6_2_Retrieve_Episodic_Data;
+    
+    P6_2_Retrieve_Episodic_Data -- "Query for Conversation Logs" --> Mongo_UserPrefsConv;
+    Mongo_UserPrefsConv -- "Raw Conversation Summaries/Logs" --> P6_2_Retrieve_Episodic_Data;
+    
+    P6_2_Retrieve_Episodic_Data -- "Aggregated Historical Interaction Data" --> P6_3_Analyze_Data_Identify_Patterns;
+
+    %% Analysis, Generalization, and LTM Update
+    P6_3_Analyze_Data_Identify_Patterns -- "Identified Patterns & Potential Insights" --> P6_4_Generalize_Consolidate_Insights;
+    P6_4_Generalize_Consolidate_Insights -- "Generalized & Consolidated LTM Insights" --> P6_5_Update_LTM_Store;
+    P6_5_Update_LTM_Store -- "LTM Update Data (New/Modified Insights)" --> Mongo_LTM_Metadata;
+    Mongo_LTM_Metadata -- "LTM Update Confirmation" --> P6_5_Update_LTM_Store;
+    P6_5_Update_LTM_Store -- "LTM Update Status" --> P6_6_Log_LTM_Update_Activity; %% For logging success/failure
+
+    %% Logging Traces for the background process
+    P6_1_Initiate_Learning_Cycle -- "Trace Data (Cycle Start)" --> P6_6_Log_LTM_Update_Activity;
+    P6_2_Retrieve_Episodic_Data -- "Trace Data (Data Retrieval)" --> P6_6_Log_LTM_Update_Activity;
+    P6_3_Analyze_Data_Identify_Patterns -- "Trace Data (Analysis)" --> P6_6_Log_LTM_Update_Activity;
+    P6_4_Generalize_Consolidate_Insights -- "Trace Data (Generalization)" --> P6_6_Log_LTM_Update_Activity;
+    P6_6_Log_LTM_Update_Activity -- "Background Process Traces" --> P7_Record_System_Traces;
+
+    %% title Level 2 DFD for P6.0: Learn From History (LTM Updater - Background)

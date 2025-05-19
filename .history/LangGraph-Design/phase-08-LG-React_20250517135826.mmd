@@ -1,0 +1,84 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       /* ancient parchment (for graph background) */
+      'nodeBorder': '#8B4513',        /* saddle brown (for node borders) */
+      'lineColor': '#A0522D',         /* sienna (for lines) */
+      'primaryTextColor': '#5C4033',  /* dark brown (for text) */
+      'uiComponentColor': '#ADD8E6',    /* light blue (for UI components) */
+      'apiColor': '#90EE90',          /* light green (for API endpoints) */
+      'dbColor': '#FFB6C1',           /* light pink (for DB) */
+      'configColor': '#E6E6FA',      /* lavender (for config/LiteLLM) */
+      'edgeLabelBackground':'#FFFFE0', /* light yellow (for edge labels background) */
+      'clusterBkg': '#FFFFE0'       /* light yellow (for cluster background) */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef uiLayer fill:#ADD8E6,stroke:#5A9FB8,stroke-width:2px;
+    classDef uiComponent fill:#B0E0E6,stroke:#5A9FB8,stroke-width:1px;
+    classDef apiLayer fill:#90EE90,stroke:#38761D,stroke-width:2px;
+    classDef apiEndpoint fill:#C1E1C1,stroke:#38761D,stroke-width:1px;
+    classDef dataStore fill:#FFB6C1,stroke:#A52A2A,stroke-width:2px;
+    classDef config fill:#E6E6FA,stroke:#483D8B,stroke-width:2px;
+
+    User[User]
+
+    subgraph React_UI [React UI Application]:::uiLayer
+        direction TB
+        ChatInterface[Chat Interface Component]:::uiComponent
+        LLMSelector[LLM Selection Component]:::uiComponent
+        HistoryPanel[History Panel Component<br/>(View, Select, Rename, Delete)]:::uiComponent
+        PreferencesModal[User Preferences Modal]:::uiComponent
+    end
+
+    subgraph Backend_APIs [Backend API Layer (Python/FastAPI)]:::apiLayer
+        direction TB
+        ChatAPI["/api/chat<br/>(Handles messages, uses Agent Core)"]:::apiEndpoint
+        HistoryAPI["/api/history<br/>(CRUD for Conversations)"]:::apiEndpoint
+        ModelsAPI["/api/models<br/>(Lists LLMs via LiteLLM)"]:::apiEndpoint
+        PreferencesAPI["/api/preferences<br/>(CRUD for User Preferences)"]:::apiEndpoint
+    end
+
+    subgraph Data_Storage [Data Storage]:::dataStore
+        MongoDB[(MongoDB<br/>- Users Collection (Preferences)<br/>- Conversations Collection (History))]
+    end
+
+    subgraph Configuration_Management [Configuration & Model Management]:::config
+        LiteLLM{{LiteLLM<br/>(Model Abstraction)}}
+    end
+
+    %% User Interactions
+    User -- Interacts with --> ChatInterface;
+    User -- Interacts with --> LLMSelector;
+    User -- Interacts with --> HistoryPanel;
+    User -- Interacts with --> PreferencesModal;
+
+    %% UI to Backend API Communications
+    ChatInterface -- HTTP Requests --> ChatAPI;
+    LLMSelector -- HTTP GET /api/models --> ModelsAPI;
+    HistoryPanel -- HTTP Requests (GET, POST, PUT, DELETE) --> HistoryAPI;
+    PreferencesModal -- HTTP Requests (GET, POST) --> PreferencesAPI;
+
+    %% Backend API to Data Storage Communications
+    ChatAPI -- Stores/Retrieves History --> MongoDB;
+    HistoryAPI -- Accesses/Modifies --> MongoDB;
+    PreferencesAPI -- Accesses/Modifies User Prefs --> MongoDB;
+
+    %% Backend API to Configuration/LiteLLM
+    ModelsAPI -- Gets Model List from --> LiteLLM;
+    ChatAPI -- (Indirectly via Agent Core) Uses Model via --> LiteLLM;
+
+
+    %% Apply specific class styles if not covered by subgraph defaults
+    class MongoDB dataStore;
+    class LiteLLM config;
+
+    title Phase 8 Architecture: UI Development (React) & History APIs

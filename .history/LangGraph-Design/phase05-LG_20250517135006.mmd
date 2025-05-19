@@ -1,0 +1,67 @@
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontFamily': 'Comic Sans MS, cursive',
+      'fontSize': '14px',
+      'primaryColor': '#FFFACD',       
+      'nodeBorder': '#8B4513',        
+      'lineColor': '#A0522D',         
+      'primaryTextColor': '#5C4033',  
+      'secondaryColor': '#DEB887',    /* светло-коричневый (для узлов инструментов) */
+      'tertiaryColor': '#F5DEB3',     /* пшеничный (для узлов обработки) */
+      'edgeLabelBackground':'#FFFFE0', /* светло-желтый (для меток ребер) */
+      'clusterBkg': '#FFFFE0'       /* светло-желтый (для фона кластеров) */
+    },
+    'flowchart': {
+      'curve': 'basis'
+    }
+  }
+}%%
+
+graph TD
+    classDef langGraphCore fill:#FFFACD,stroke:#8B4513,stroke-width:2px;
+    classDef toolNode fill:#DEB887,stroke:#8B4513,stroke-width:2px;
+    classDef logicNode fill:#F5DEB3,stroke:#8B4513,stroke-width:2px;
+    classDef decisionNode fill:#FFE4B5,stroke:#8B4513,stroke-width:2px,shape:diamond;
+    classDef memoryNode fill:#E6E6FA,stroke:#8B4513,stroke-width:2px,shape:cylinder;
+    classDef stateNode fill:#FAFAD2,stroke:#8B4513,stroke-width:1px,shape:parallelogram;
+    classDef vectorDBNode fill:#B0E0E6,stroke:#8B4513,stroke-width:2px,shape:cylinder; /* Powder Blue for VectorDB */
+
+    %% Nodes
+    A[Start: Query Routed for RAG]:::langGraphCore
+    B[Vector DB Search Tool Node Invocation]:::toolNode
+    C{{Vector Database}}:::vectorDBNode
+    D[Retrieve RAG Results Node]:::logicNode
+    E["Context Refinement Node (LLM + RAG Results)"]:::logicNode
+    F[Updated State / Context for Next Step]:::stateNode
+    G[End: Context Updated]:::langGraphCore
+
+    %% Connections
+    A --> B;
+    B -- Query/Embeddings --> C;
+    C -- Retrieved Chunks --> B;
+    B -- Raw RAG Results --> D;
+    D -- Formatted RAG Results --> E;
+    E -- Original Context & RAG Results --> E; 
+    %% Self-loop to indicate processing
+    E -- Refined Context --> F;
+    F --> G;
+
+    %% Subgraph for RAG specific steps
+    subgraph "RAG Processing within LangGraph"
+        direction TB
+        B
+        C
+        D
+        E
+    end
+
+    %% Apply classes
+    class A,G langGraphCore;
+    class B toolNode;
+    class C vectorDBNode;
+    class D,E logicNode;
+    class F stateNode;
+
+    %% title Phase 5 Architecture: Basic RAG Integration & Context Refinement

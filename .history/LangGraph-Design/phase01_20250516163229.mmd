@@ -1,0 +1,62 @@
+%%{
+  init: {
+    'theme': 'base', %% Starting from a base theme for customization
+    'themeVariables': {
+      'fontFamily': 'Arial, sans-serif', %% Using a common, readable font; Comic Sans might not be universally available/readable
+      'fontSize': '16px',             %% Slightly larger font size
+      'primaryColor': '#ADD8E6',       %% Light Blue (e.g., for UI)
+      'secondaryColor': '#90EE90',      %% Light Green (e.g., for Backend)
+      'tertiaryColor': '#FFFF99',       %% Light Yellow (e.g., for External)
+      'quaternaryColor': '#FFB6C1',     %% Light Red/Pink (e.g., for Database)
+      'lineColor': '#555',              %% Darker lines for clarity
+      'nodeBorder': '#333',             %% Darker node borders
+      'primaryTextColor': '#333',       %% Dark text for readability
+      'clusterBorder': '#BBB',          %% Lighter border for subgraphs
+      'clusterBkg': '#F9F9F9'           %% Light background for subgraphs
+    },
+     'flowchart': {
+        %% Use 'basis' or 'linear' for curved lines
+       'curve': 'basis' 
+     'look': 'handDrawn' 
+  }
+}%%
+flowchart TD
+
+    %% Define Custom Styles using theme variables or specific colors
+    classDef uiStyle fill:#ADD8E6,stroke:#333,stroke-width:2px;       %% Light Blue
+    classDef backendStyle fill:#90EE90,stroke:#333,stroke-width:2px;   %% Light Green
+    classDef llmStyle fill:#FFFF99,stroke:#333,stroke-width:2px;       %% Light Yellow (matching themme tertiary)
+    classDef dbStyle fill:#FFB6C1,stroke:#333,stroke-width:2px;        %% Light Red/Pink (e.g., for Database)
+    classDef externalStyle fill:#FFFF99,stroke:#333,stroke-width:2px; %% Light Yellow (matching theme tertiary)
+
+
+    %% Define Nodes and Subgraphs
+    subgraph Frontend
+        %% Arrange components top-down within Backend
+        direction LR
+        UI[User Interface (UI)]:::uiStyle
+    end
+
+    subgraph Backend Services
+        direction TD
+        BackendAPI[Backend API (Python)]:::backendStyle
+         %% Iconic shape for gateway
+        LiteLLMGateway{{LiteLLM Gateway}}:::llmStyle
+        MongoDB[/MongoDB Database\]:::dbStyle    
+    end
+
+    %% Iconic shape for external service
+    ExternalLLM[(External LLM Provider)]:::externalStyle 
+
+
+    %% Define Flow (Edges)
+    UI -- "User Query" --> BackendAPI;
+    BackendAPI -- "Forwards Query" --> LiteLLMGateway;
+    LiteLLMGateway -- "Request to LLM" --> ExternalLLM;
+    ExternalLLM -- "Returns Response" --> LiteLLM Gateway; %% Corrected target node ID
+    LiteLLMGateway -- "Forwards Response" --> BackendAPI;
+    BackendAPI -- "Generates/Sends Response" --> UI;
+    BackendAPI -- "Stores/Retrieves Basic Data" --> MongoDB;
+
+
+    title Phase 1 Architecture Diagram: Basic Setup
