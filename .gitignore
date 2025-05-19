@@ -1,1 +1,4 @@
 lightRAG/examples/.env.aoi.example
+lightRAG/LIGHTRAG/app/.env.aoi.example
+app/.env
+.history/
