@@ -1,0 +1,63 @@
+graph TB
+    %% Single Agent Architecture (Current)
+    subgraph Single["🔵 SINGLE AGENT ARCHITECTURE (Current)"]
+        START1([START])
+        State1[(Graph State)]
+        Guard1[Input Guardrails]
+        Agent1{Main Agent<br/>- All decisions<br/>- All tools<br/>- All reasoning}
+        Tools1[All Tools: Weather, Stocks, Client Data, etc.]
+        Output1[Output Guardrails]
+        END1([END])
+        
+        START1 --> State1 --> Guard1 --> Agent1
+        Agent1 -.-> Tools1 -.-> Agent1
+        Agent1 --> Output1 --> END1
+    end
+    
+    %% Multi-Agent Architecture
+    subgraph Multi["🔴 MULTI-AGENT ARCHITECTURE (When Needed)"]
+        START2([START])
+        State2[(Graph State)]
+        Guard2[Input Guardrails]
+        
+        %% Router Agent
+        Router{Router Agent<br/>- Route to specialist<br/>- Coordinate workflow}
+        
+        %% Specialist Agents
+        Weather_Agent{Weather Agent<br/>+ Weather Tools}
+        Finance_Agent{Finance Agent<br/>+ Stock Tools<br/>+ Portfolio Tools}
+        Client_Agent{Client Agent<br/>+ Client Info Tools<br/>+ Preference Tools}
+        
+        %% Synthesis Agent
+        Synthesis_Agent{Synthesis Agent<br/>- Combine responses<br/>- Final reasoning}
+        
+        Output2[Output Guardrails]
+        END2([END])
+        
+        START2 --> State2 --> Guard2 --> Router
+        Router --> Weather_Agent
+        Router --> Finance_Agent  
+        Router --> Client_Agent
+        
+        Weather_Agent --> Synthesis_Agent
+        Finance_Agent --> Synthesis_Agent
+        Client_Agent --> Synthesis_Agent
+        
+        Synthesis_Agent --> Output2 --> END2
+    end
+    
+    %% Decision Matrix
+    subgraph Decision["📊 WHEN TO USE WHICH?"]
+        Single_Use["✅ USE SINGLE AGENT WHEN:<br/>• Simple to moderate complexity<br/>• Similar reasoning patterns<br/>• Fast response needed<br/>• Easy to maintain<br/>• Cost-effective"]
+        
+        Multi_Use["✅ USE MULTI-AGENT WHEN:<br/>• Complex specialized domains<br/>• Different reasoning styles needed<br/>• Parallel processing beneficial<br/>• Team-like collaboration<br/>• Scale/performance critical"]
+    end
+    
+    %% Styling
+    classDef singleClass fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef multiClass fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef agentClass fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef decisionClass fill:#f1f8e9,stroke:#388e3c,stroke-width:2px
+    
+    class Agent1,Router,Weather_Agent,Finance_Agent,Client_Agent,Synthesis_Agent agentClass
+    class Single_Use,Multi_Use decisionClass

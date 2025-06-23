@@ -1,0 +1,68 @@
+---
+config:
+  look: handDrawn
+  theme: redux
+---
+graph TB
+    START([Client Query])
+    State[(Financial Planning State<br/>- Client profile<br/>- Financial goals<br/>- Risk tolerance<br/>- Timeline)]
+    Input_Guard[Input Guardrails<br/>- Compliance check<br/>- Privacy validation<br/>- Regulatory requirements]
+    Orchestrator{Orchestrator Agent<br/>- Query analysis<br/>- Route to specialists<br/>- Coordinate responses<br/>- Manage workflow}
+    subgraph Specialists["🏦 SPECIALIST FINANCIAL AGENTS"]
+        Retirement_Agent{Retirement Planning Agent<br/>• 401k/IRA optimization<br/>• Social Security timing<br/>• Pension analysis<br/>• Withdrawal strategies}
+        College_Agent{College Savings Agent<br/>• 529 plan optimization<br/>• Education cost projection<br/>• Financial aid strategies<br/>• Tax credit analysis}
+        Investment_Agent{Advanced Investment Agent<br/>• Portfolio optimization<br/>• Asset allocation<br/>• Alternative investments<br/>• Risk management}
+        Tax_Agent{Tax Planning Agent<br/>• Tax-loss harvesting<br/>• Roth conversions<br/>• Tax-efficient strategies<br/>• Municipal bonds analysis}
+        Estate_Agent{Estate Planning Agent<br/>• Inheritance planning<br/>• Trust structures<br/>• Gift tax strategies<br/>• Legacy planning}
+        Family_Agent{Family Trust Agent<br/>• Trust administration<br/>• Generation-skipping<br/>• Family office strategies<br/>• Wealth transfer}
+    end
+    subgraph Tools["🛠️ SPECIALIZED TOOLS"]
+        Retirement_Tools[Retirement Tools<br/>• Monte Carlo simulations<br/>• Social Security optimizer<br/>• Required minimum distributions]
+        College_Tools[Education Tools<br/>• College cost calculator<br/>• 529 plan analyzer<br/>• Financial aid estimator]
+        Investment_Tools[Investment Tools<br/>• Portfolio analyzer<br/>• Risk assessment<br/>• Market data feeds]
+        Tax_Tools[Tax Tools<br/>• Tax calculator<br/>• Bracket analysis<br/>• Deduction optimizer]
+        Estate_Tools[Estate Tools<br/>• Estate tax calculator<br/>• Trust analyzer<br/>• Probate estimator]
+        Family_Tools[Family Tools<br/>• Trust management<br/>• Generation planning<br/>• Wealth transfer models]
+    end
+    Synthesis_Agent{Synthesis Agent<br/>- Integrate all recommendations<br/>- Resolve conflicts<br/>- Prioritize strategies<br/>- Create holistic plan}
+    Compliance_Agent{Compliance Agent<br/>- Fiduciary duty check<br/>- Regulatory compliance<br/>- Risk disclosure<br/>- Documentation}
+    Output_Guard[Output Guardrails<br/>- Final compliance check<br/>- Clear communication<br/>- Action items<br/>- Follow-up scheduling]
+    END([Comprehensive Financial Plan])
+    START --> State
+    State --> Input_Guard
+    Input_Guard --> Orchestrator
+    Orchestrator --> Retirement_Agent
+    Orchestrator --> College_Agent
+    Orchestrator --> Investment_Agent
+    Orchestrator --> Tax_Agent
+    Orchestrator --> Estate_Agent
+    Orchestrator --> Family_Agent
+    Retirement_Agent -.-> Retirement_Tools
+    College_Agent -.-> College_Tools
+    Investment_Agent -.-> Investment_Tools
+    Tax_Agent -.-> Tax_Tools
+    Estate_Agent -.-> Estate_Tools
+    Family_Agent -.-> Family_Tools
+    Retirement_Agent --> Synthesis_Agent
+    College_Agent --> Synthesis_Agent
+    Investment_Agent --> Synthesis_Agent
+    Tax_Agent --> Synthesis_Agent
+    Estate_Agent --> Synthesis_Agent
+    Family_Agent --> Synthesis_Agent
+    Synthesis_Agent --> Compliance_Agent
+    Compliance_Agent --> Output_Guard
+    Output_Guard --> END
+    Synthesis_Agent -.->|needs clarification| Orchestrator
+    Compliance_Agent -.->|needs revision| Synthesis_Agent
+    classDef orchestratorClass fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    classDef specialistClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef synthesisClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef toolClass fill:#fff3e0,stroke:#e65100,stroke-width:1px
+    classDef guardClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef stateClass fill:#f1f8e9,stroke:#388e3c,stroke-width:2px
+    class Orchestrator orchestratorClass
+    class Retirement_Agent,College_Agent,Investment_Agent,Tax_Agent,Estate_Agent,Family_Agent specialistClass
+    class Synthesis_Agent,Compliance_Agent synthesisClass
+    class Retirement_Tools,College_Tools,Investment_Tools,Tax_Tools,Estate_Tools,Family_Tools toolClass
+    class Input_Guard,Output_Guard guardClass
+    class State stateClass
