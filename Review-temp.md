@@ -1,3 +1,89 @@
+To implement a Bounded Executor in Spring Boot, you need to define a ThreadPoolTaskExecutor bean. This ensures that when you use the @Async annotation, Spring uses your specific configuration instead of the default "unlimited" pool.
+The most important part of your request is the "hanging" threads. To fix this, we use timeouts and queue management to ensure threads don't stay alive forever if they get stuck.
+1. The Configuration (Java)
+Place this class in your project. It configures a pool that handles about 500 concurrent threads, has a queue for spikes, and naming for easy debugging in AppDynamics.
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
+
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean(name = "taskExecutor")
+    public Executor taskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        
+        // 1. Core Pool: The number of threads that stay alive always
+        executor.setCorePoolSize(100); 
+        
+        // 2. Max Pool: The absolute limit of threads (based on your 500 parallel calc)
+        executor.setMaxPoolSize(500); 
+        
+        // 3. Queue Capacity: If 500 threads are busy, 1000 tasks wait here
+        executor.setQueueCapacity(1000); 
+        
+        // 4. Thread Name: Crucial for logs and AppDynamics
+        executor.setThreadNamePrefix("AsyncWorker-");
+
+        // 5. Keep Alive: If a thread is idle for 200ms, kill it (as we discussed)
+        executor.setKeepAliveSeconds(0); // Set to 0 or 1 for immediate cleanup of idle threads
+        
+        // 6. Rejection Policy: What to do if queue is full? 
+        // CallerRunsPolicy makes the main thread do the work, slowing down the system naturally (backpressure)
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+
+        // 7. Graceful Shutdown: Ensure threads finish before app stops
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+
+        executor.initialize();
+        return executor;
+    }
+}
+
+
+2. How it works (The Flow)
+Core Pool: The first 100 requests get their own threads immediately.
+The Queue: If all 100 are busy, the next 1,000 requests go into the Queue.
+The Max Pool: If the queue hits 1,000, the executor starts creating new threads up to 500.
+The Rejection: If you have 500 threads running and 1,000 in the queue (total 1,500 tasks), the next user will be handled by the Main Thread (Login thread). This is good because it prevents "Out of Memory" by slowing down the login process slightly until the background clears.
+3. Handling the "Hanging" Threads
+Setting a pool limit prevents the memory leak, but it doesn't stop a single thread from waiting 2 hours for a database or API. To fix the "hanging" permanently, you must set timeouts at the code level:
+HTTP Calls: Set connectTimeout and readTimeout (e.g., 5 seconds) in your RestTemplate or WebClient.
+Mongo/SQL: Set socketTimeout or maxWaitTime in your connection string.
+Method Level: If using CompletableFuture, use .orTimeout(10, TimeUnit.SECONDS).
+4. How to use it in your Code
+Because we named the bean taskExecutor, Spring will use it by default for any @Async method.
+@Service
+public class LoginService {
+
+    @Async("taskExecutor") // Explicitly tell Spring to use your bounded pool
+    public void performBackgroundTasks(String userId) {
+        // This runs in an "AsyncWorker-" thread
+        // If this crashes, the thread is returned to the pool automatically
+        try {
+            // Your logic here
+        } catch (Exception e) {
+            // Log the error so you can see it!
+            log.error("Async task failed for user {}", userId, e);
+        }
+    }
+}
+
+
+Summary of settings for your scale:
+Max Threads: 500 (Matches your calculation of 500 parallel tasks/min).
+Queue: 1,000 (Safety buffer for spikes).
+Idle Timeout: 200ms - 1s (Cleans up the 400 extra threads as soon as the spike ends).
+Thread Names: AsyncWorker-X (Easier to find in AppDynamics).
+Would you like me to show you how to set the specific timeouts for your Mongo or HTTP calls so they don't hang those threads?
+
+
 ExecutorService.
 To answer your question: In a modern Spring Boot application, there is usually no need for this specific code. While the logic in your images is technically correct for a "plain Java" environment, it adds unnecessary complexity and risk to a Spring Boot app. Here is a breakdown of why this might be contributing to your "hanging" problem and why the Spring-native way is better.
 1. The Risk in Your Current Code (Images)
